@@ -1,13 +1,10 @@
-import time
 from sequence.kernel.timeline import Timeline
 from sequence.topology.node import QKDNode
-from sequence.components.optical_channel import QuantumChannelEve, QuantumChannel, ClassicalChannel
+from sequence.components.optical_channel import ClassicalChannel
 from sequence.qkd.BB84 import pair_bb84_protocols
-import matplotlib.pyplot as plt
-import numpy as np
-
 import logging
 
+from quantum_channel_eve import QuantumChannelEve
 
 class KeyManager():
     def __init__(self, timeline, keysize, num_keys):
@@ -36,15 +33,15 @@ def test(sim_time, keysize, num_of_keys, test_distance, attenuation_val):
     level = logging.DEBUG
     #level = logging.INFO
     # level = logging.WARNING
-    logging.basicConfig(level=level, filename='', filemode='w')
+    #logging.basicConfig(level=level, filename='', filemode='w')
 
     # begin by defining the simulation timeline with the correct simulation time
     tl = Timeline(sim_time * 1e9)
     
     # Here, we create nodes for the network (QKD nodes for key distribution)
     # stack_size=1 indicates that only the BB84 protocol should be included
-    n1 = QKDNode("n1", tl, stack_size=1)
-    n2 = QKDNode("n2", tl, stack_size=1)
+    n1 = QKDNode("n1", tl, stack_size=2)
+    n2 = QKDNode("n2", tl, stack_size=2)
     n1.set_seed(0)
     n2.set_seed(1)
     pair_bb84_protocols(n1.protocol_stack[0], n2.protocol_stack[0])
@@ -65,12 +62,19 @@ def test(sim_time, keysize, num_of_keys, test_distance, attenuation_val):
     #                      polarization_fidelity=0.97)
 
     qc0 = QuantumChannelEve("qc_n1_n2", tl, attenuation=attenuation_val, distance=test_distance,
-                         polarization_fidelity=0.97, eavesdropper_efficiency = 0.5)
+                         polarization_fidelity=0.97, eavesdropper_efficiency = 0.7)
     qc1 = QuantumChannelEve("qc_n2_n1", tl, attenuation=attenuation_val, distance=test_distance,
-                         polarization_fidelity=0.97, eavesdropper_efficiency = 0.5)
+                         polarization_fidelity=0.97, eavesdropper_efficiency = 0.7)
     qc0.set_ends(n1, n2.name)
     qc1.set_ends(n2, n1.name)
-    
+
+    qc0_backup = QuantumChannelEve("qc_n1_n2_backup", tl, attenuation=attenuation_val, distance=test_distance,
+                         polarization_fidelity=0.93, eavesdropper_efficiency = 0.0)
+    qc1_backup = QuantumChannelEve("qc_n2_n1_backup", tl, attenuation=attenuation_val, distance=test_distance,
+                         polarization_fidelity=0.93, eavesdropper_efficiency = 0.0)
+    n1.set_backup_qchannel(qc0_backup)
+    n2.set_backup_qchannel(qc1_backup)    
+
     # instantiate our written keysize protocol
     km1 = KeyManager(tl, keysize, num_of_keys)
     km1.lower_protocols.append(n1.protocol_stack[0])
@@ -85,6 +89,7 @@ def test(sim_time, keysize, num_of_keys, test_distance, attenuation_val):
     tl.run()
     key_rate_times = n1.get_protocol_stack().generate_key_times()
     error_rates = n1.get_protocol_stack().get_error_rates()
+    print(km1.keys, km2.keys)
     return [key_rate_times, error_rates]
 
-test(1000, 10, 15, 1e3, 1e-5)[1]
+print(test(1000, 10, 10, 1e3, 1e-5)[1])

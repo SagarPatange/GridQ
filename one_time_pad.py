@@ -13,7 +13,6 @@ def binary_to_text(binary_string):
 
 # Example usage:
 
-print("############################################################")
 cipher = onetimepad.encrypt('Some text', 'a_random_key')
 print(cipher)
 binary_message = text_to_binary(cipher)

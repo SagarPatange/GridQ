@@ -19,10 +19,31 @@ from sequence.protocol import StackProtocol
 from sequence.kernel.event import Event
 from sequence.kernel.process import Process
 from sequence.utils import log
-from BB84 import BB84, BB84Message, pair_bb84_protocols, BB84MsgType
 
 
-class BB84Message_GridQ(BB84Message):
+def pair_bb84_protocols(sender: "BB84", receiver: "BB84") -> None:
+    """Function to pair BB84 protocol instances.
+
+    Args:
+        sender (BB84): protocol instance sending qubits (Alice).
+        receiver (BB84): protocol instance receiving qubits (Bob).
+    """
+    sender.another = receiver
+    receiver.another = sender
+    sender.role = 0
+    receiver.role = 1
+
+
+class BB84MsgType(Enum):
+    """Defines possible message types for BB84."""
+
+    BEGIN_PHOTON_PULSE = auto()
+    RECEIVED_QUBITS = auto()
+    BASIS_LIST = auto()
+    MATCHING_INDICES = auto()
+
+
+class BB84Message(Message):
     """Message used by BB84 protocols.
 
     This message contains all information passed between BB84 protocol instances.
@@ -41,7 +62,7 @@ class BB84Message_GridQ(BB84Message):
 
     def __init__(self, msg_type: BB84MsgType, receiver: str, **kwargs):
         Message.__init__(self, msg_type, receiver)
-        self.protocol_type = BB84_GridQ
+        self.protocol_type = BB84
         if self.msg_type is BB84MsgType.BEGIN_PHOTON_PULSE:
             self.frequency = kwargs["frequency"]
             self.light_time = kwargs["light_time"]
@@ -56,13 +77,14 @@ class BB84Message_GridQ(BB84Message):
         else:
             raise Exception("BB84 generated invalid message type {}".format(msg_type))
 
-class BB84_GridQ(BB84):
+
+class BB84(StackProtocol):
     """Implementation of BB84 protocol.
 
     The BB84 protocol uses photons to create a secure key between two QKD Nodes.
 
     Attributes:
-        owner (QKDNode): node that protocol instance is attached to.
+        own (QKDNode): node that protocol instance is attached to.
         name (str): label for protocol instance.
         role (int): determines if instance is "alice" or "bob" node.
         working (bool): shows if protocol is currently working on a key.
@@ -79,7 +101,8 @@ class BB84_GridQ(BB84):
         self.keys_left_list (List[int]): list of desired number of keys.
         self.end_run_times (List[int]): simulation time for end of each request.
     """
-    def __init__(self, own: "QKDNode", name: str, lightsource: str, qsdetector: str, role=-1):        
+
+    def __init__(self, own: "QKDNode", name: str, lightsource: str, qsdetector: str, role=-1):
         """Constructor for BB84 class.
 
         Args:
@@ -91,11 +114,10 @@ class BB84_GridQ(BB84):
         Keyword Args:
             role (int): 0/1 role defining Alice and Bob protocols (default -1).
         """
-        super().__init__(own, name, lightsource, qsdetector, role)
 
         if own is None:  # used only for unit test purposes
             return
-        # super().__init__(own, name)
+        super().__init__(own, name)
         self.ls_name = lightsource
         self.qsd_name = qsdetector
         self.role = role
@@ -119,11 +141,18 @@ class BB84_GridQ(BB84):
         self.keys = []
         self.polarization_fideliety = None
 
-        # # metrics
-        # self.latency = 0  # measured in seconds
-        # self.last_key_time = 0
-        # self.throughputs = []  # measured in bits/sec
-        # self.error_rates = []
+
+        # metrics
+        self.latency = 0  # measured in seconds
+        self.last_key_time = 0
+        self.throughputs = []  # measured in bits/sec
+        self.error_rates = []
+
+
+    def pop(self, detector_index: int, time: int) -> None:
+        """Method to receive detection events (currently unused)."""
+
+        assert 0
 
     def push(self, length: int, key_num: int, run_time=1e16) -> None:
         """Method to receive requests for key generation.
@@ -141,6 +170,7 @@ class BB84_GridQ(BB84):
             raise AssertionError("generate key must be called from Alice")
 
         log.logger.info(self.name + " generating keys, keylen={}, keynum={}".format(length, key_num))
+        
         self.num_of_keys = key_num
         self.key_lengths.append(length)
         self.another.key_lengths.append(length)
@@ -149,11 +179,14 @@ class BB84_GridQ(BB84):
         self.end_run_times.append(end_run_time)
         self.another.end_run_times.append(end_run_time)
 
+
         if self.ready:
             self.ready = False
             self.working = True
             self.another.working = True
-            self.start_protocol()
+            self.start_protocol()    ############added 
+
+        
 
     def start_protocol(self) -> None:
         """Method to start protocol.
@@ -186,7 +219,7 @@ class BB84_GridQ(BB84):
             self.ls_freq = ls.frequency
 
             # calculate light time based on key length
-            self.light_time = self.key_lengths[0] / (self.ls_freq * ls.mean_photon_num)
+            self.light_time = self.key_lengths[0] / (self.ls_freq * ls.mean_photon_num)    #### understand equation 
 
             # send message that photon pulse is beginning, then send bits
             self.start_time = int(self.owner.timeline.now()) + round(self.owner.cchannels[self.another.owner.name].delay)
@@ -201,10 +234,12 @@ class BB84_GridQ(BB84):
 
             self.last_key_time = self.owner.timeline.now()
         else:
-            self.ready = True    
+            self.ready = True
+        
         return 
 
     def begin_photon_pulse(self) -> None:
+
         """Method to begin sending photons.
 
         Will calculate qubit parameters and invoke lightsource emit method.
@@ -235,11 +270,15 @@ class BB84_GridQ(BB84):
                 state_list.append(state)
             lightsource.emit(state_list)
 
-            self.basis_lists.append(basis_list)
-            self.bit_lists.append(bit_list)
-            self.start_time = self.owner.timeline.now() + int(round(self.light_time * 1e12))
+            self.basis_lists.append(basis_list)   
+            self.bit_lists.append(bit_list)         
+
+            self.start_time = self.owner.timeline.now() + int(round(self.light_time * 1e12))   #### copied line
+          
             process = Process(self, "begin_photon_pulse", [])
+            #event = Event(self.start_time + int(round(self.light_time * 1e12)), process)
             event = Event(self.start_time, process)
+
             self.owner.timeline.schedule(event)
 
         else:
@@ -257,6 +296,40 @@ class BB84_GridQ(BB84):
             process = Process(self, "start_protocol", [])
             event = Event(time, process)
             self.owner.timeline.schedule(event)
+
+    def set_measure_basis_list(self) -> None:
+        """Method to set measurement basis list."""
+
+        log.logger.debug(self.name + " setting measurement basis")
+
+        num_pulses = int(self.light_time * self.ls_freq)
+        basis_list = numpy.random.choice([0, 1], num_pulses)
+        self.basis_lists.append(basis_list)
+        self.owner.components[self.qsd_name].set_basis_list(basis_list, self.start_time, self.ls_freq)
+
+    def end_photon_pulse(self) -> None:
+        """Method to process sent qubits."""
+
+        log.logger.debug(self.name + " ending photon pulse")
+
+        if self.working and self.owner.timeline.now() < self.end_run_times[0]:
+            # get bits
+            self.bit_lists.append(self.owner.get_bits(self.light_time, self.start_time, self.ls_freq, self.qsd_name))
+            self.start_time = self.owner.timeline.now()
+            # set bases for measurement
+            self.set_measure_basis_list()
+
+            # schedule another if necessary
+            if self.owner.timeline.now() + self.light_time * 1e12 - 1 < self.end_run_times[0]:
+                # schedule another
+                process = Process(self, "end_photon_pulse", [])
+                event = Event(self.start_time + int(round(self.light_time * 1e12) - 1), process)
+                self.owner.timeline.schedule(event)
+
+            # send message that we got photons
+            message = BB84Message(BB84MsgType.RECEIVED_QUBITS, self.another.name)
+            self.owner.send_message(self.another.owner.name, message)
+
 
     def received_message(self, src: str, msg: "Message") -> None:
         """Method to receive messages.
@@ -294,16 +367,18 @@ class BB84_GridQ(BB84):
             elif msg.msg_type is BB84MsgType.BASIS_LIST:  # (Current node is Bob): compare bases
                 log.logger.debug(self.name + " received BASIS_LIST message. Simulation time: " + str(self.owner.timeline.now()))
                 # parse alice basis list
-                basis_list_alice = msg.bases
+                basis_list_alice = msg.bases 
 
                 # compare own basis with basis message and create list of matching indices
                 indices = []
                 basis_list = self.basis_lists.pop(0)
                 bits = self.bit_lists.pop(0)
+
                 for i, b in enumerate(basis_list_alice):
                     if bits[i] != -1 and basis_list[i] == b:
                         indices.append(i)
                         self.key_bits.append(bits[i])
+                
                 # send to Alice list of matching indices
                 message = BB84Message(BB84MsgType.MATCHING_INDICES, self.another.name, indices=indices)
                 self.owner.send_message(self.another.owner.name, message)
@@ -326,7 +401,9 @@ class BB84_GridQ(BB84):
                     while len(self.key_bits) >= self.key_lengths[0] and self.keys_left_list[0] > 0:
                         log.logger.info(self.name + " generated a valid key")
                         self.set_key()  # convert from binary list to int
+                        self._pop(info=self.key)
                         self.another.set_key()
+                        self.another._pop(info=self.another.key)  # TODO: why access another node?
                         self.keys.append(self.key)
 
                         # for metrics
@@ -340,45 +417,39 @@ class BB84_GridQ(BB84):
                         while key_diff:
                             key_diff &= key_diff - 1
                             num_errors += 1
+                            ### if eavesdropper detected then halt generation: def halt_generation and then resume at a later time 
+                            ### would include timeline.now() utilization
                         key_error = num_errors / self.key_lengths[0]
                         self.error_rates.append(num_errors / self.key_lengths[0])
-                        polarization_fidelity = self.owner.qchannels[next(iter(self.owner.qchannels))].polarization_fidelity  
-                        print(f'Key error: {key_error}')                      
-                        if key_error > (1 - polarization_fidelity):
 
-                            print(f'Eavesdropper Detected. Discard Key. Error Rate: {key_error}')
-
-                            if self.owner.backup_qchannel or self.another.owner.backup_qchannel is not None:
-                                qc0 = self.owner.qchannels[self.owner.destination]
-                                qc1 = self.another.owner.qchannels[self.owner.name]
-                                qc0_backup = self.owner.backup_qchannel
-                                qc1_backup = self.another.owner.backup_qchannel
-                                qc0_backup.set_ends(self.owner, self.owner.destination)
-                                qc1_backup.set_ends(self.another.owner, self.owner.name)
-                                self.owner.set_backup_qchannel(qc0)
-                                self.another.owner.set_backup_qchannel(qc1)
-                                self.owner.timeline.events.data.clear()
-                                self.another.owner.timeline.events.data.clear()
-                                self.start_protocol()
-
+                        polarization_fidelity = self.owner.qchannels[next(iter(self.owner.qchannels))].polarization_fidelity
+                        if key_error >= (1 - polarization_fidelity):
+                            print('Eavesdropper Detected: Discard Key')
                         else:
                             self.keys_left_list[0] -= 1
-                            self.another._pop(info=self.another.key) 
-                            self._pop(info=self.key)
-
 
                         self.key_generation_time.append(self.owner.timeline.now())
-
                     self.last_key_time = self.owner.timeline.now()
             
                 # check if we're done
                 if self.keys_left_list[0] < 1:
                     self.working = False
                     self.another.working = False
-                        
+                    
+
+    def set_key(self):
+        """Method to convert `bit_list` field (List[int]) to a single key (int)."""
+
+        key_bits = self.key_bits[0:self.key_lengths[0]]
+        del self.key_bits[0:self.key_lengths[0]]
+        self.key = int("".join(str(x) for x in key_bits), 2)  # convert from binary list to int
+    
     def generate_key_times (self):
-        return self.key_generation_time
+        g = self.key_generation_time
+        return g
     
     def get_error_rates(self):
         return sum(self.error_rates) / len(self.error_rates)
 
+    def get_keys(self):
+        return 

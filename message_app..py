@@ -1,17 +1,18 @@
 from sequence.kernel.timeline import Timeline
 from sequence.topology.node import QKDNode
-from sequence.components.optical_channel import QuantumChannelEve, ClassicalChannel
+from sequence.components.optical_channel import ClassicalChannel
+from quantum_channel_eve import QuantumChannelEve
 from sequence.qkd.BB84 import pair_bb84_protocols
 from sequence.message import Message
 from enum import Enum, auto
-from sequence.utils import log
 from sequence.message import Message
 import math
-import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.pyplot as plt
 import json
 from colorama import Fore, Style, init
 
+from node_GridQ import QKDNode_GridQ
 # Initialize colorama
 init()
 
@@ -76,11 +77,12 @@ class MessageType(Enum):
 
 ##### Defines the cryptic message exchange protocol
 class CrypticMessageExchange:
-    def __init__(self, own: "QKDNode", another: "QKDNode"):
+    def __init__(self, own: "QKDNode_GridQ", another: "QKDNode_GridQ"):
         self.own = own
         self.another = another
         self.messages_sent = []
         self.messages_recieved = []
+        self.name = own.name
 
     def received_message(self, src: str, msg: "Message"):
         """Method to receive encrypts messages.
@@ -120,8 +122,8 @@ class MessageManager:
     encrypted messages using the keys generated using QKD. 
 
     Attributes:
-        own (QKDNode): the primary node through which messages are sent and recieved
-        another (QKDNode): the secondary node which massages are recieved and sent
+        own (QKDNode_GridQ): the primary node through which messages are sent and recieved
+        another (QKDNode_GridQ): the secondary node which massages are recieved and sent
         keys (List[int]): stores the list of keys generated using QKD
         keys (List[int]): stores the list of keys generated using QKD
         another_message_manager (MessageManager): other node's message manager 
@@ -134,7 +136,7 @@ class MessageManager:
         km2 (KeyManager): node 2's key manager
     '''
 
-    def __init__(self, own: "QKDNode", another: "QKDNode", timeline: Timeline):
+    def __init__(self, own: "QKDNode_GridQ", another: "QKDNode_GridQ", timeline: Timeline):
 
         # Nodes
         self.own = own
@@ -159,6 +161,9 @@ class MessageManager:
         # Message Variables
         self.messages_recieved = []
         self.messages_sent = []
+
+        # Metrics
+        self.time_to_generate_keys = None
     
     def pair_message_manager(self, node):
         self.another_message_manager = node
@@ -188,7 +193,8 @@ class MessageManager:
                             polarization_fidelity=polarization_fidelity, eavesdropper_efficiency = eavesdropper_eff)
         qc0.set_ends(self.own, self.another.name)
         qc1.set_ends(self.another, self.own.name)
-        
+
+
         # instantiate our written keysize protocol
         km1 = KeyManager(self.tl, keysize, num_keys)
         km1.lower_protocols.append(self.own.protocol_stack[0])
@@ -203,6 +209,7 @@ class MessageManager:
         self.tl.run()
 
         ### setting class variabless
+        self.time_to_generate_keys = self.tl.now()
         self.own_keys = np.append(self.own_keys,km1.keys)
         self.another_keys = np.append(self.another_keys,km2.keys)
         self.cc0 = cc0
@@ -285,13 +292,16 @@ class MessageManager:
         ## Message Update
         message_error, character_error = compare_and_print_lists(messages, decrypted_messages_recieved)
         print(f'Percent of messages with error: {message_error}; Percent of characters with error: {character_error}.')
+        print(f'Simulation time: {self.time_to_generate_keys}')
 
         ## delete used keys
         del self.own_keys
         del self.another_keys
 
+        return self.time_to_generate_keys
 
-def test(sim_time, msg, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff):
+
+def test(sim_time, msg, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff, backup_qc):
     '''
     Test which simulates sending classical messages using QKD, only using the BB84 protocol
     Parameters:
@@ -310,10 +320,18 @@ def test(sim_time, msg, internode_distance, attenuation, polarization_fidelity, 
 
     # node 1 and 2 initialization    
     # Stack size = 1 means only BB84 will be implemented        
-    node1 = QKDNode("n1", tl, stack_size=1)    
+    node1 = QKDNode_GridQ("n1", tl, stack_size=1)    
     node1.set_seed(0)                           
-    node2 = QKDNode("n2", tl, stack_size=1)     
+    node2 = QKDNode_GridQ("n2", tl, stack_size=1)     
     node2.set_seed(1)
+
+    if backup_qc:
+        qc0_backup = QuantumChannelEve("qc_n1_n2_backup", tl, attenuation=attenuation, distance=internode_distance,
+                                polarization_fidelity=1, eavesdropper_efficiency = 0.0)
+        qc1_backup = QuantumChannelEve("qc_n2_n1_backup", tl, attenuation=attenuation, distance=internode_distance,
+                                polarization_fidelity=1, eavesdropper_efficiency = 0.0)
+        node1.set_backup_qchannel(qc0_backup)
+        node2.set_backup_qchannel(qc1_backup) 
 
     # message manager 1 and 2 initialization and pairing
     n1 = MessageManager(node1, node2, tl)
@@ -324,7 +342,8 @@ def test(sim_time, msg, internode_distance, attenuation, polarization_fidelity, 
     # Effects: 1) generates keys for node1 and node2 
     # 2) Encrypts messages using node1's keys and sends to node2
     # 3) Node2 decrypts messages using its keys 
-    n1.send_message('n2', msg, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff)
+    results = n1.send_message('n2', msg, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff)
+    return results
 
 ######################################################################################################################
 
@@ -333,7 +352,28 @@ if __name__ == "__main__":
     filename = 'random_strings.json'
     strings_list = load_from_json(filename)
 
-    test(sim_time = 1000, msg = strings_list, internode_distance= 1e3, 
-         attenuation = 1e-5, polarization_fidelity = 0.98, eavesdropper_eff = 0.0)
+    result_list_change = []
+    result_list_noChange = []
+    for i in range(5):
+        results = test(sim_time = 1000, msg = strings_list, internode_distance= 1e3, 
+            attenuation = 1e-5, polarization_fidelity = 0.97, eavesdropper_eff = 0.0, backup_qc = True)
+        result_list_change.append(results)
+    for i in range(5):
+        results = test(sim_time = 1000, msg = strings_list, internode_distance= 1e3, 
+            attenuation = 1e-5, polarization_fidelity = 0.97, eavesdropper_eff = 0.0, backup_qc = False)
+        result_list_noChange.append(results)
+
+    fig = plt.figure(figsize =(10, 7))
+
+    # Creating plot
+    plt.boxplot([result_list_noChange, result_list_change])
+    plt.xticks([1, 2], ['No-Change', 'Change'])  # Setting labels for the two datasets
+
+    # show plot
+    plt.title('Quantum Channel: Change vs No Change')
+    plt.show()
+
+        
+
     
 
