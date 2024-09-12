@@ -1,20 +1,30 @@
-# Import libraries
-import matplotlib.pyplot as plt
-import numpy as np
+# Function to compare two strings and print mismatched letters in red
+def compare_strings_with_color(string1, string2):
+    # ANSI escape code for red text
+    RED_START = '\033[91m'
+    RED_END = '\033[0m'
 
+    result1 = []
+    result2 = []
 
-# Creating dataset
-np.random.seed(10)
-data = np.random.normal(100, 20, 200)
-data1 = np.random.normal(100, 10, 200)
+    # Iterate through both strings character by character
+    for ch1, ch2 in zip(string1, string2):
+        if ch1 == ch2:
+            # If characters match, append normally
+            result1.append(ch1)
+            result2.append(ch2)
+        else:
+            # If characters don't match, append with red color
+            result1.append(f"{RED_START}{ch1}{RED_END}")
+            result2.append(f"{RED_START}{ch2}{RED_END}")
 
-data_2 = [data, data1]
-fig = plt.figure(figsize =(10, 7))
+    # Join the results and print them
+    print("String 1:", ''.join(result1))
+    print("String 2:", ''.join(result2))
 
-# Creating plot
-plt.boxplot(data_2)
+# Example usage
+string1 = "Hello, World!"
+string2 = "Hella, Wardd!"
 
-# show plot
-plt.xticks([1, 2], ['No-Change', 'Change'])  # Setting labels for the two datasets
-plt.title('Quantum Channel: Change vs No Change')
-plt.show()
+# Call the function to compare and print the strings with color
+compare_strings_with_color(string1, string2)

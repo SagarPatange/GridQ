@@ -19,7 +19,7 @@ from sequence.protocol import StackProtocol
 from sequence.kernel.event import Event
 from sequence.kernel.process import Process
 from sequence.utils import log
-from BB84 import BB84, BB84Message, pair_bb84_protocols, BB84MsgType
+from eavesdropper_implemented.BB84 import BB84, BB84Message, pair_bb84_protocols, BB84MsgType
 
 
 class BB84Message_GridQ(BB84Message):
@@ -343,12 +343,13 @@ class BB84_GridQ(BB84):
                         key_error = num_errors / self.key_lengths[0]
                         self.error_rates.append(num_errors / self.key_lengths[0])
                         polarization_fidelity = self.owner.qchannels[next(iter(self.owner.qchannels))].polarization_fidelity  
-                        print(f'Key error: {key_error}')                      
-                        if key_error > (1 - polarization_fidelity):
+                        print(f'Key error: {key_error}')
 
-                            print(f'Eavesdropper Detected. Discard Key. Error Rate: {key_error}')
+                        if self.owner.backup_qchannel is not None or self.another.owner.backup_qchannel is not None:                      
+                            if key_error > (1 - polarization_fidelity):
 
-                            if self.owner.backup_qchannel or self.another.owner.backup_qchannel is not None:
+                                print(f'Eavesdropper Detected. Discard Key. Error Rate: {key_error}')
+
                                 qc0 = self.owner.qchannels[self.owner.destination]
                                 qc1 = self.another.owner.qchannels[self.owner.name]
                                 qc0_backup = self.owner.backup_qchannel
@@ -361,6 +362,10 @@ class BB84_GridQ(BB84):
                                 self.another.owner.timeline.events.data.clear()
                                 self.start_protocol()
 
+                            else:
+                                self.keys_left_list[0] -= 1
+                                self.another._pop(info=self.another.key) 
+                                self._pop(info=self.key)
                         else:
                             self.keys_left_list[0] -= 1
                             self.another._pop(info=self.another.key) 

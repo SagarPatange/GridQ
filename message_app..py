@@ -1,59 +1,28 @@
+## imports from sequence package
 from sequence.kernel.timeline import Timeline
-from sequence.topology.node import QKDNode
 from sequence.components.optical_channel import ClassicalChannel
-from quantum_channel_eve import QuantumChannelEve
+from eavesdropper_implemented.quantum_channel_eve import QuantumChannelEve
 from sequence.qkd.BB84 import pair_bb84_protocols
 from sequence.message import Message
 from enum import Enum, auto
 from sequence.message import Message
+import sequence.utils.log as log
+
+## package imports
 import math
 import numpy as np
-import matplotlib.pyplot as plt
 import json
-from colorama import Fore, Style, init
 
-from node_GridQ import QKDNode_GridQ
-# Initialize colorama
-init()
+## local repo imports 
+from message_application_components.performance_metrics.message_accuracy import compare_strings_with_color, count_character_differences
+from eavesdropper_implemented.node_GridQ import QKDNode_GridQ
+from message_application_components.encryption import otp_encrypt, otp_decrypt
+from message_application_components.json_generator import load_from_json
 
-def compare_and_print_lists(list1, list2):
-    max_len = max(len(list1), len(list2))
-    
-    # Extend both lists to the maximum length by appending empty strings
-    list1.extend([''] * (max_len - len(list1)))
-    list2.extend([''] * (max_len - len(list2)))
+## Constant definition
+SPEED_OF_LIGHT = 3e8
 
-    # Compare and print the lists with mismatched elements in red
-    error_counter = 0
-    total_string_length = 0
-    letter_differences = 0
-    for item1, item2 in zip(list1, list2):
-        if item1 != item2:
-            print(f"{Fore.RED}{item1}{Style.RESET_ALL}" if item1 else "", end=' ')
-            print(f"{Fore.RED}{item2}{Style.RESET_ALL}" if item2 else "")
-            error_counter +=1
-            total_string_length += len(item1)
-            letter_differences += count_character_differences(item1, item2)
-        else:
-            print(item1, item2)
-            total_string_length += len(item1)
-    
-    return error_counter/len(list1), letter_differences/total_string_length
-
-def count_character_differences(str1, str2):
-    max_len = max(len(str1), len(str2))
-    str1 = str1.ljust(max_len)
-    str2 = str2.ljust(max_len)
-    differences = sum(1 for c1, c2 in zip(str1, str2) if c1 != c2)  
-    return differences
-
-def load_from_json(filename):
-    with open(filename, 'r') as f:
-        data = json.load(f)
-    return data
-
-#############################################################################################################
-##### Manages Keys and forms a pool of keys
+## Manages QKD keys
 class KeyManager:
     def __init__(self, timeline, keysize, num_keys):
         self.timeline = timeline
@@ -71,11 +40,11 @@ class KeyManager:
         self.keys.append(info)
         self.times.append(self.timeline.now() * 1e-9)
 
-##### Defines the message type
+## Defines the message type
 class MessageType(Enum):
     REGULAR_MESSAGE = auto()
 
-##### Defines the cryptic message exchange protocol
+## Defines the cryptic message exchange protocol
 class CrypticMessageExchange:
     def __init__(self, own: "QKDNode_GridQ", another: "QKDNode_GridQ"):
         self.own = own
@@ -98,7 +67,7 @@ class CrypticMessageExchange:
             self.own.protocol_stack[0].messages_recieved.append(msg.text)
             self.another.protocol_stack[0].messages_sent.append(msg.text)
 
-##### Defines the attributes sent with the message ## TODO: rename, encrypt message
+## Defines the attributes sent with the message ## TODO: rename, encrypt message
 class EncryptedMessage(Message):
     """Message"""
     def __init__(self, msg_type: MessageType, receiver: str, **kwargs):
@@ -109,10 +78,7 @@ class EncryptedMessage(Message):
         else:
             raise Exception("Generated invalid message type {}".format(msg_type))
 
-##### Plays the role of a messanger_app connecting two clients.
-### Contains the generate keys command
-### Can make a node send and recieve messages to and from another node            
-    
+## Class containing QKD messaging abilities
 class MessageManager:
 
     '''
@@ -164,6 +130,10 @@ class MessageManager:
 
         # Metrics
         self.time_to_generate_keys = None
+        self.internode_distance = None
+        self.one_way_classical_time = None
+        self.total_sim_time = 0
+
     
     def pair_message_manager(self, node):
         self.another_message_manager = node
@@ -218,24 +188,7 @@ class MessageManager:
         self.qc1 = qc1
         self.km1 = km1
         self.km2 = km2
-
-    ## Method to encrypt messages
-    def otp_encrypt(self, plaintext, key):
-        key_string = str(key)
-        if len(plaintext) != len(key_string):
-            if len(key_string) > len(plaintext):
-                key_string = key_string[len(key_string) - len(plaintext):]  
-        encrypted_message = ''.join(chr(ord(p) ^ ord(k)) for p, k in zip(plaintext, key_string))
-        return encrypted_message
-
-    ## Method to decrypt messages
-    def otp_decrypt(self, ciphertext, key):
-        key_string = str(key)
-        if len(ciphertext) != len(key_string):
-            if len(key_string) > len(ciphertext):
-                key_string = key_string[len(key_string) - len(ciphertext):]
-        decrypted_message = ''.join(chr(ord(c) ^ ord(k)) for c, k in zip(ciphertext, key_string))
-        return decrypted_message
+        self.internode_distance = internode_distance
     
     ## Method to generate specific number of keys 
     def customize_keys(self, messages, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff):
@@ -253,7 +206,7 @@ class MessageManager:
 
         encoded_messages = []
         for i in range(len(messages)):
-            encoded_messages.append(self.otp_encrypt(messages[i], self.own_keys[i]))
+            encoded_messages.append(otp_encrypt(messages[i], self.own_keys[i]))
 
         self.own.protocol_stack.clear()
         self.own.protocols.clear()
@@ -268,18 +221,22 @@ class MessageManager:
         self.another.protocol_stack.append(another_protocol)
         self.another.protocols.append(another_protocol)
 
+        ## equation to determine the amount of time needed to send a classical message in a optical fiber depending on the distance. 
+        self.one_way_classical_time = self.internode_distance / (SPEED_OF_LIGHT / 1.5)
+
         ## send message
         for i in range(len(encoded_messages)):
             msg = EncryptedMessage(MessageType.REGULAR_MESSAGE, self.another.name, the_message = encoded_messages[i])
             if self.another.name == dst:
                 self.own.send_message(self.another.name, msg)
             self.tl.run()
+            self.total_sim_time += self.one_way_classical_time
 
 
         encrypted_messages_recieved = self.another.protocol_stack[0].messages_recieved
         decrypted_messages_recieved = []
         for i in range(len(messages)):
-            decrypted_messages_recieved.append(self.otp_decrypt(encrypted_messages_recieved[i], self.another_keys[i]))
+            decrypted_messages_recieved.append(otp_decrypt(encrypted_messages_recieved[i], self.another_keys[i]))
 
         ## Update other message manager
         self.messages_sent = messages
@@ -290,17 +247,18 @@ class MessageManager:
             self.another_message_manager.messages_recieved = decrypted_messages_recieved
 
         ## Message Update
-        message_error, character_error = compare_and_print_lists(messages, decrypted_messages_recieved)
-        print(f'Percent of messages with error: {message_error}; Percent of characters with error: {character_error}.')
-        print(f'Simulation time: {self.time_to_generate_keys}')
+        for i in range(len(messages)):
+            compare_strings_with_color(messages[i], decrypted_messages_recieved[i])
+            character_error = count_character_differences(messages[i], decrypted_messages_recieved[i])
+            print(f'Percent of message with error: {character_error}.')
 
         ## delete used keys
         del self.own_keys
         del self.another_keys
 
-        return self.time_to_generate_keys
+        return self.total_sim_time
 
-
+## Testing method
 def test(sim_time, msg, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff, backup_qc):
     '''
     Test which simulates sending classical messages using QKD, only using the BB84 protocol
@@ -318,6 +276,13 @@ def test(sim_time, msg, internode_distance, attenuation, polarization_fidelity, 
     # timeline initialization
     tl = Timeline(sim_time * 1e9)   
 
+    log_filename = 'log'
+    log.set_logger(__name__, tl, log_filename)
+    log.set_logger_level('DEBUG')
+    modules = ['timeline', 'message_app', 'BB84_eve', 'quantum_channel_eve']
+    for module in modules:
+        log.track_module(module)
+
     # node 1 and 2 initialization    
     # Stack size = 1 means only BB84 will be implemented        
     node1 = QKDNode_GridQ("n1", tl, stack_size=1)    
@@ -325,6 +290,7 @@ def test(sim_time, msg, internode_distance, attenuation, polarization_fidelity, 
     node2 = QKDNode_GridQ("n2", tl, stack_size=1)     
     node2.set_seed(1)
 
+    # if back up quantum channel exists set a back up quantum channel
     if backup_qc:
         qc0_backup = QuantumChannelEve("qc_n1_n2_backup", tl, attenuation=attenuation, distance=internode_distance,
                                 polarization_fidelity=1, eavesdropper_efficiency = 0.0)
@@ -345,33 +311,16 @@ def test(sim_time, msg, internode_distance, attenuation, polarization_fidelity, 
     results = n1.send_message('n2', msg, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff)
     return results
 
-######################################################################################################################
-
+## main function 
 if __name__ == "__main__":
 
-    filename = 'random_strings.json'
-    strings_list = load_from_json(filename)
+    filename = 'PowerGridData.json'
+    json_data = load_from_json(filename)
+    json_string = [json.dumps(json_data, indent = 4)]
+    
+    test(sim_time = 1000, msg = json_string, internode_distance= 1e3, 
+             attenuation = 1e-5, polarization_fidelity = 1.0, eavesdropper_eff = 0.0, backup_qc = True)  # TODO : the input for msg is string list but I only pass in a string so change that 
 
-    result_list_change = []
-    result_list_noChange = []
-    for i in range(5):
-        results = test(sim_time = 1000, msg = strings_list, internode_distance= 1e3, 
-            attenuation = 1e-5, polarization_fidelity = 0.97, eavesdropper_eff = 0.0, backup_qc = True)
-        result_list_change.append(results)
-    for i in range(5):
-        results = test(sim_time = 1000, msg = strings_list, internode_distance= 1e3, 
-            attenuation = 1e-5, polarization_fidelity = 0.97, eavesdropper_eff = 0.0, backup_qc = False)
-        result_list_noChange.append(results)
-
-    fig = plt.figure(figsize =(10, 7))
-
-    # Creating plot
-    plt.boxplot([result_list_noChange, result_list_change])
-    plt.xticks([1, 2], ['No-Change', 'Change'])  # Setting labels for the two datasets
-
-    # show plot
-    plt.title('Quantum Channel: Change vs No Change')
-    plt.show()
 
         
 

@@ -32,7 +32,7 @@ from sequence.resource_management.resource_manager import ResourceManager
 from sequence.network_management.network_manager import NewNetworkManager
 from sequence.utils.encoding import *
 from sequence.utils import log
-from BB84_eve import BB84_GridQ
+from eavesdropper_implemented.BB84_eve import BB84_GridQ
 
 from sequence.topology.node import Node, QKDNode
 

@@ -4,7 +4,7 @@ from sequence.components.optical_channel import ClassicalChannel
 from sequence.qkd.BB84 import pair_bb84_protocols
 import logging
 
-from quantum_channel_eve import QuantumChannelEve
+from eavesdropper_implemented.quantum_channel_eve import QuantumChannelEve
 
 class KeyManager():
     def __init__(self, timeline, keysize, num_keys):
@@ -33,7 +33,7 @@ def test(sim_time, keysize, num_of_keys, test_distance, attenuation_val):
     level = logging.DEBUG
     #level = logging.INFO
     # level = logging.WARNING
-    #logging.basicConfig(level=level, filename='', filemode='w')
+    logging.basicConfig(level=level, filename='', filemode='w')
 
     # begin by defining the simulation timeline with the correct simulation time
     tl = Timeline(sim_time * 1e9)
