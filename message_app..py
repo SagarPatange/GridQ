@@ -7,20 +7,20 @@ from sequence.message import Message
 from enum import Enum, auto
 from sequence.message import Message
 import sequence.utils.log as log
+import logging
+
 
 ## package imports
 import math
 import numpy as np
 import json
+import onetimepad
 
 ## local repo imports 
 from message_application_components.performance_metrics.message_accuracy import compare_strings_with_color, count_character_differences
 from eavesdropper_implemented.node_GridQ import QKDNode_GridQ
 from message_application_components.encryption import otp_encrypt, otp_decrypt
 from message_application_components.json_generator import load_from_json
-
-## Constant definition
-SPEED_OF_LIGHT = 3e8
 
 ## Manages QKD keys
 class KeyManager:
@@ -130,8 +130,6 @@ class MessageManager:
 
         # Metrics
         self.time_to_generate_keys = None
-        self.internode_distance = None
-        self.one_way_classical_time = None
         self.total_sim_time = 0
 
     
@@ -188,7 +186,6 @@ class MessageManager:
         self.qc1 = qc1
         self.km1 = km1
         self.km2 = km2
-        self.internode_distance = internode_distance
     
     ## Method to generate specific number of keys 
     def customize_keys(self, messages, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff):
@@ -206,7 +203,8 @@ class MessageManager:
 
         encoded_messages = []
         for i in range(len(messages)):
-            encoded_messages.append(otp_encrypt(messages[i], self.own_keys[i]))
+            # encoded_messages.append(otp_encrypt(messages[i], self.own_keys[i])) ## chat-gpt encrypt
+            encoded_messages.append(onetimepad.encrypt(messages[i], str(self.own_keys[i]))) ## onetimepad encryption
 
         self.own.protocol_stack.clear()
         self.own.protocols.clear()
@@ -221,22 +219,18 @@ class MessageManager:
         self.another.protocol_stack.append(another_protocol)
         self.another.protocols.append(another_protocol)
 
-        ## equation to determine the amount of time needed to send a classical message in a optical fiber depending on the distance. 
-        self.one_way_classical_time = self.internode_distance / (SPEED_OF_LIGHT / 1.5)
-
         ## send message
         for i in range(len(encoded_messages)):
             msg = EncryptedMessage(MessageType.REGULAR_MESSAGE, self.another.name, the_message = encoded_messages[i])
             if self.another.name == dst:
                 self.own.send_message(self.another.name, msg)
             self.tl.run()
-            self.total_sim_time += self.one_way_classical_time
-
 
         encrypted_messages_recieved = self.another.protocol_stack[0].messages_recieved
         decrypted_messages_recieved = []
         for i in range(len(messages)):
-            decrypted_messages_recieved.append(otp_decrypt(encrypted_messages_recieved[i], self.another_keys[i]))
+            # decrypted_messages_recieved.append(otp_decrypt(encrypted_messages_recieved[i], self.another_keys[i])) ## chat-gpt encryption
+            decrypted_messages_recieved.append(onetimepad.decrypt(encrypted_messages_recieved[i], str(self.another_keys[i]))) ## onetimepad encryption
 
         ## Update other message manager
         self.messages_sent = messages
@@ -249,9 +243,9 @@ class MessageManager:
         ## Message Update
         for i in range(len(messages)):
             compare_strings_with_color(messages[i], decrypted_messages_recieved[i])
-            character_error = count_character_differences(messages[i], decrypted_messages_recieved[i])
-            print(f'Percent of message with error: {character_error}.')
 
+        ## Metrics update
+        self.total_sim_time = self.tl.now()
         ## delete used keys
         del self.own_keys
         del self.another_keys
@@ -276,12 +270,20 @@ def test(sim_time, msg, internode_distance, attenuation, polarization_fidelity, 
     # timeline initialization
     tl = Timeline(sim_time * 1e9)   
 
-    log_filename = 'log'
-    log.set_logger(__name__, tl, log_filename)
-    log.set_logger_level('DEBUG')
-    modules = ['timeline', 'message_app', 'BB84_eve', 'quantum_channel_eve']
-    for module in modules:
-        log.track_module(module)
+    # log_filename = 'log'
+    # log.set_logger(__name__, tl, log_filename)
+    # log.set_logger_level('DEBUG')
+    # modules = ['timeline', 'message_app', 'BB84_eve', 'quantum_channel_eve']
+    # for module in modules:
+    #     log.track_module(module)
+
+    ######################### Second way of logging
+    # level = logging.DEBUG
+    # #level = logging.INFO
+    # # level = logging.WARNING
+    # logging.basicConfig(level=level, filename='', filemode='w')
+    
+
 
     # node 1 and 2 initialization    
     # Stack size = 1 means only BB84 will be implemented        
@@ -316,12 +318,13 @@ if __name__ == "__main__":
 
     filename = 'PowerGridData.json'
     json_data = load_from_json(filename)
-    json_string = [json.dumps(json_data, indent = 4)]
+    json_string = [json.dumps(json_data)]
+
     
-    test(sim_time = 1000, msg = json_string, internode_distance= 1e3, 
-             attenuation = 1e-5, polarization_fidelity = 1.0, eavesdropper_eff = 0.0, backup_qc = True)  # TODO : the input for msg is string list but I only pass in a string so change that 
+    time = test(sim_time = 1000, msg = json_string, internode_distance= 1e3, 
+             attenuation = 1e-5, polarization_fidelity = 0.999, eavesdropper_eff = 0.0, backup_qc = True)  # TODO : the input for msg is string list but I only pass in a string so change that 
 
-
+    print(f'End to end time: {time / 1e9} ms')
         
 
     

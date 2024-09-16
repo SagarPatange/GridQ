@@ -25,7 +25,7 @@ data = {
 }
 
 # Save the data to a JSON file
-file_name = 'generated_numbers.json'
+file_name = 'PowerGridData.json'
 with open(file_name, 'w') as json_file:
     json.dump(data, json_file, indent=4)
 

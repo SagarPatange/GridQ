@@ -8,9 +8,7 @@ Encryption method list:
 
 '''
 
-import onetimepad
-
-''' Encryption method 1: Simple encrpytion algorithm for one-time-pad '''
+''' Text to binary and Vice Versa'''
 
 def text_to_binary(text):
     binary_result = ' '.join(format(ord(char), '08b') for char in text)
@@ -22,7 +20,7 @@ def binary_to_text(binary_string):
     return text_result
 
 # Example usage - run this function in __main__:
-def test_onetimepad_py_package():
+def test_b_to_t():
     cipher = onetimepad.encrypt('Some text', 'a_random_key')
     print(cipher)
     binary_message = text_to_binary(cipher)
@@ -32,7 +30,7 @@ def test_onetimepad_py_package():
     msg = onetimepad.decrypt(cipher, 'a_random_key')
     print(msg)
 
-''' Encryption method 2: Chat-GPT one-time-pad '''
+''' Encryption method 1: Chat-GPT one-time-pad '''
 
 def otp_encrypt(plaintext, key):
     """
@@ -64,6 +62,19 @@ def otp_decrypt(ciphertext, key):
     decrypted_message = ''.join(chr(ord(c) ^ ord(k)) for c, k in zip(ciphertext, key_string))
     return decrypted_message
     
+''' Encryption method 2: uses the onetimepad package from python '''
+
+import onetimepad
+
+# Plain text that you want to encrypt
+def test_onetimepad():
+    plaintext = 'hello world'
+
+    # Encrypting the text using a random key
+    ciphertext = onetimepad.encrypt(plaintext, 'randomkey')
+    print('Encrypted:', ciphertext)    
+    decrypted_text = onetimepad.decrypt(ciphertext, 'randomkey')
+    print('Decrypted:', decrypted_text) 
 
 if __name__ == "__main__" :
 
