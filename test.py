@@ -1,32 +1,27 @@
-def compare_strings_with_color(string1, string2):
-    # ANSI escape code for red text
-    RED_START = '\033[91m'
-    RED_END = '\033[0m'
+import csv
+import json
 
-    result1 = []
-    result2 = []
-    difference_count = 0
+# Define the path to the CSV file and the output JSON file
+csv_file_path = 'input.csv'
+json_file_path = 'output.json'
 
-    # Iterate through both strings character by character
-    for ch1, ch2 in zip(string1, string2):
-        if ch1 == ch2:
-            # If characters match, append normally
-            result1.append(ch1)
-            result2.append(ch2)
-        else:
-            # If characters don't match, append with red color and increase difference count
-            result1.append(f"{RED_START}{ch1}{RED_END}")
-            result2.append(f"{RED_START}{ch2}{RED_END}")
-            difference_count += 1
+# Function to convert CSV data to JSON
+def convert_csv_to_json(csv_file_path, json_file_path):
+    # Open the CSV file for reading
+    with open(csv_file_path, mode='r', newline='') as csv_file:
+        # Create a CSV reader object using DictReader, which directly reads each row to a dictionary
+        csv_reader = csv.DictReader(csv_file)
+        
+        # Convert csv_reader to a list of dictionaries (one dictionary per row)
+        data = list(csv_reader)
 
-    # Calculate error percentage
-    error_percentage = (difference_count / len(string1)) * 100 if string1 else 0
+    # Open the JSON file for writing
+    with open(json_file_path, mode='w') as json_file:
+        # Dump the list of dictionaries to the JSON file
+        # `indent=4` is used for pretty printing the JSON data
+        json.dump(data, json_file, indent=4)
+    
+    print(f"CSV data has been successfully converted to JSON and saved in '{json_file_path}'")
 
-    # Join the results and print them
-    print("String 1:", ''.join(result1))
-    print("String 2:", ''.join(result2))
-    print(f"Character Differences: {difference_count}")
-    print(f"Error Percentage: {error_percentage:.2f}%")
-
-# Example usage:
-compare_strings_with_color("hello world", "he11o wor1d")
+# Call the function to convert CSV to JSON
+convert_csv_to_json(csv_file_path, json_file_path)

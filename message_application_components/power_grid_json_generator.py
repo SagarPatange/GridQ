@@ -25,7 +25,7 @@ data = {
 }
 
 # Save the data to a JSON file
-file_name = 'PowerGridData.json'
+file_name = './power_grid_datafiles/power_grid_input.json'
 with open(file_name, 'w') as json_file:
     json.dump(data, json_file, indent=4)
 
