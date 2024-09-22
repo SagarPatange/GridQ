@@ -2,16 +2,12 @@
 
 FROM python:3.11.9
 
-ADD test.py .
+ADD message_app.py .
 
-RUN pip install sequence 
+WORKDIR /GRIDQ
 
-CMD ["python", "./test.py"]
+COPY . /GRIDQ
 
-# FROM python:3.11.9
+RUN pip install --no-cache-dir -r docker_requirements.txt
 
-# ADD message_app.py .
-
-# RUN pip install sequence enum math json onetimpad numpy
-
-# CMD ["python", "./message_app.py"]
+CMD ["python", "./message_app.py"]

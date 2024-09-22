@@ -10,7 +10,6 @@ import sequence.utils.log as log
 from sequence.constants import MILLISECOND
 import logging
 
-
 ## package imports
 import math
 import numpy as np
@@ -21,6 +20,7 @@ import csv
 ## local repo imports 
 from message_application_components.performance_metrics.message_accuracy import compare_strings_with_color
 from eavesdropper_implemented.node_GridQ import QKDNode_GridQ
+from message_application_components.power_grid_csv_generator import write_input_powergrid_csv_file, csv_to_string, string_to_csv
 
 ## Manages QKD keys
 class KeyManager:
@@ -151,8 +151,8 @@ class MessageManager:
         # begin by defining the simulation timeline with the correct simulation time
 
         pair_bb84_protocols(self.own.protocol_stack[0], self.another.protocol_stack[0])
-        cc0 = ClassicalChannel("cc_n1_n2", self.tl, distance=internode_distance)
-        cc1 = ClassicalChannel("cc_n2_n1", self.tl, distance=internode_distance)
+        cc0 = ClassicalChannel("cc_n1_n2", self.tl, distance=internode_distance, delay = MILLISECOND)
+        cc1 = ClassicalChannel("cc_n2_n1", self.tl, distance=internode_distance, delay = MILLISECOND)
         cc0.set_ends(self.own, self.another.name)
         cc1.set_ends(self.another, self.own.name)
         qc0 = QuantumChannelEve("qc_n1_n2", self.tl, attenuation=attenuation, distance=internode_distance,
@@ -253,66 +253,6 @@ class MessageManager:
 
         return self.total_sim_time
 
-def csv_to_string (csv_file_path):  
-
-    '''
-    Method converts CSV to JSON, then converts JSON to string
-
-    returns: a string of data in csv file 
-    '''
-
-    json_file_path = './power_grid_datafiles/power_grid_input.json'
-    with open(csv_file_path, mode='r', newline='') as csv_file:
-        csv_reader = csv.DictReader(csv_file) # Create a CSV reader object using DictReader, which directly reads each row to a dictionary
-        data = list(csv_reader) # Convert csv_reader to a list of dictionaries (one dictionary per row)
-
-    # Open the JSON file for writing
-    with open(json_file_path, mode='w') as json_file:
-        json.dump(data, json_file, indent=4)
-    
-    # print(f"CSV data has been successfully converted to JSON and saved in '{json_file_path}'")
-    with open(json_file_path, 'r') as f:
-        json_data = json.load(f)
-    json_string = [json.dumps(json_data)]
-
-    return json_string
-
-def string_to_csv (data_string):  
-
-    '''
-    Method converts string to JSON, then converts JSON to CSV
-
-    '''
-
-    data = json.loads(data_string)
-
-    # Define the path to the output JSON file
-    json_file_path = './power_grid_datafiles/power_grid_output.json'
-    csv_file_path = './power_grid_datafiles/power_grid_output.csv'
-    # Write the Python object to a JSON file
-    with open(json_file_path, 'w') as json_file:
-        # Write the data to the file; indent=4 for pretty-printing
-        json.dump(data, json_file, indent=4)
-
-    with open(json_file_path, 'r') as json_file:
-        # Load the entire JSON content into a Python list (assuming it's an array of objects)
-        data = json.load(json_file)
-
-    # Open the CSV file for writing
-    with open(csv_file_path, mode='w', newline='') as csv_file:
-        # Assuming that all dictionaries in 'data' have the same keys
-        if data:
-            # Extract headers (keys) from the first item (this assumes that all dicts have the same keys)
-            headers = data[0].keys()
-
-            # Create a CSV writer object and write the header row
-            csv_writer = csv.DictWriter(csv_file, fieldnames=headers)
-            csv_writer.writeheader()
-
-            # Write the data rows
-            csv_writer.writerows(data)
-    
-
 ## Testing method
 def test(sim_time, msg, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff, backup_qc):
     '''
@@ -339,18 +279,18 @@ def test(sim_time, msg, internode_distance, attenuation, polarization_fidelity, 
     #     log.track_module(module)
 
     ######################### Second way of logging
-    # level = logging.DEBUG
-    # #level = logging.INFO
-    # # level = logging.WARNING
-    # logging.basicConfig(level=level, filename='', filemode='w')
+    level = logging.DEBUG
+    #level = logging.INFO
+    # level = logging.WARNING
+    logging.basicConfig(level=level, filename='', filemode='w')
     
 
 
     # node 1 and 2 initialization    
     # Stack size = 1 means only BB84 will be implemented        
-    node1 = QKDNode_GridQ("n1", tl, stack_size=1)    
+    node1 = QKDNode_GridQ("n1", tl, stack_size=2)    
     node1.set_seed(0)                           
-    node2 = QKDNode_GridQ("n2", tl, stack_size=1)     
+    node2 = QKDNode_GridQ("n2", tl, stack_size=2)     
     node2.set_seed(1)
 
     # if back up quantum channel exists set a back up quantum channel
@@ -377,12 +317,13 @@ def test(sim_time, msg, internode_distance, attenuation, polarization_fidelity, 
 ## main function 
 if __name__ == "__main__":
 
+    write_input_powergrid_csv_file()
     filename = './power_grid_datafiles/power_grid_input.csv'
     msg_string = csv_to_string(filename)
 
-    
     time = test(sim_time = 1000, msg = msg_string, internode_distance= 1e3, 
-             attenuation = 1e-5, polarization_fidelity = 1, eavesdropper_eff = 0.0, backup_qc = True)  # TODO : the input for msg is string list but I only pass in a string so change that 
+            attenuation = 1e-5, polarization_fidelity = 0.97, eavesdropper_eff = 0.0, backup_qc = True)  # TODO : the input for msg is string list but I only pass in a string so change that 
+
 
     print(f'End to end time: {time / 1e9} ms')
     print('Created `power_grid_output.csv`')
