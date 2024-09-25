@@ -3,6 +3,7 @@ from sequence.kernel.timeline import Timeline
 from sequence.components.optical_channel import ClassicalChannel
 from eavesdropper_implemented.quantum_channel_eve import QuantumChannelEve
 from sequence.qkd.BB84 import pair_bb84_protocols
+from sequence.qkd.cascade import pair_cascade_protocols
 from sequence.message import Message
 from enum import Enum, auto
 from sequence.message import Message
@@ -127,6 +128,7 @@ class MessageManager:
         # Message Variables
         self.messages_recieved = []
         self.messages_sent = []
+        self.qkd_stack_size = len([element for element in own.protocol_stack if element])
 
         # Metrics
         self.time_to_generate_keys = None
@@ -151,6 +153,9 @@ class MessageManager:
         # begin by defining the simulation timeline with the correct simulation time
 
         pair_bb84_protocols(self.own.protocol_stack[0], self.another.protocol_stack[0])
+
+        if self.qkd_stack_size > 1:
+            pair_cascade_protocols(self.own.protocol_stack[1], self.another.protocol_stack[1])
         cc0 = ClassicalChannel("cc_n1_n2", self.tl, distance=internode_distance, delay = MILLISECOND)
         cc1 = ClassicalChannel("cc_n2_n1", self.tl, distance=internode_distance, delay = MILLISECOND)
         cc0.set_ends(self.own, self.another.name)
@@ -279,15 +284,16 @@ def test(sim_time, msg, internode_distance, attenuation, polarization_fidelity, 
     #     log.track_module(module)
 
     ######################### Second way of logging
-    level = logging.DEBUG
-    #level = logging.INFO
-    # level = logging.WARNING
-    logging.basicConfig(level=level, filename='', filemode='w')
+    # level = logging.DEBUG
+    # #level = logging.INFO
+    # # level = logging.WARNING
+    # logging.basicConfig(level=level, filename='', filemode='w')
     
 
 
     # node 1 and 2 initialization    
-    # Stack size = 1 means only BB84 will be implemented        
+    # Stack size = 1 means only BB84 will be implemented
+        
     node1 = QKDNode_GridQ("n1", tl, stack_size=2)    
     node1.set_seed(0)                           
     node2 = QKDNode_GridQ("n2", tl, stack_size=2)     
@@ -322,7 +328,7 @@ if __name__ == "__main__":
     msg_string = csv_to_string(filename)
 
     time = test(sim_time = 1000, msg = msg_string, internode_distance= 1e3, 
-            attenuation = 1e-5, polarization_fidelity = 0.97, eavesdropper_eff = 0.0, backup_qc = True)  # TODO : the input for msg is string list but I only pass in a string so change that 
+            attenuation = 1e-5, polarization_fidelity = 0.99, eavesdropper_eff = 0.0, backup_qc = True)  # TODO : the input for msg is string list but I only pass in a string so change that 
 
 
     print(f'End to end time: {time / 1e9} ms')

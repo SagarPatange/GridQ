@@ -97,8 +97,8 @@ def compare_strings_with_color(string1, string2):
     error_percentage = (difference_count / len(string1)) * 100 if string1 else 0
 
     # Join the results and print them
-    print("String 1:", ''.join(result1))
-    print("String 2:", ''.join(result2))
+    print("Sender's (Alice) message:", ''.join(result1))
+    print("Receiver's (Bob) message:", ''.join(result2))
     print(f"Character Differences: {difference_count}")
     print(f"Error Percentage: {error_percentage:.2f}%")
 

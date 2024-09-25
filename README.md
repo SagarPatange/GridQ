@@ -42,6 +42,7 @@ The `eavesdropper_implemented` folder contains modified versions of the original
 * Back up quantum channel implementation 
 * Eavesdropper detection abilities
 
+To run the Dockerfile, please use the commands `docker build -t power_grid .` and `docker run power_grid` to build the image and run the image respectively. 
 
 ## Contact
 If you have questions, please contact [Sagar Patange] (https://github.com/SagarPatange) at [patange@uchicago.edu].
