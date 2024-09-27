@@ -11,6 +11,7 @@ def write_input_powergrid_csv_file():
 
     # Create the dictionary with the specified structure
     data = {
+        "Time": 0.1,   ## TODO: change
         "P": real_numbers[0],
         "Q": real_numbers[1],
         "V": real_numbers[2],

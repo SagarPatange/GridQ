@@ -78,7 +78,7 @@ class Node_GridQ(Node):
         self.backup_qchannel = qc
 
 
-class QKDNode_GridQ(Node_GridQ):
+class QKDNode_GridQ(Node_GridQ):  
     """Node for quantum key distribution.
 
     QKDNodes include a protocol stack to create keys.
@@ -104,11 +104,12 @@ class QKDNode_GridQ(Node_GridQ):
         destination (str): name of destination node for photons
         protocol_stack (List[StackProtocol]): protocols for QKD process.
     """
-    def get_protocol_stack (self):
+    def get_protocol_stack(self):
         return self.protocols[0]
 
+
     def __init__(self, name: str, timeline: "Timeline", encoding=polarization, stack_size=5,
-                 seed=None, component_templates=None):
+                 seed=None, component_templates=None, period = 0.1):
         """Constructor for the qkd node class.
 
         Args:

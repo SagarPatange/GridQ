@@ -23,24 +23,6 @@ from message_application_components.performance_metrics.message_accuracy import 
 from eavesdropper_implemented.node_GridQ import QKDNode_GridQ
 from message_application_components.power_grid_csv_generator import write_input_powergrid_csv_file, csv_to_string, string_to_csv
 
-## Manages QKD keys
-class KeyManager:
-    def __init__(self, timeline, keysize, num_keys):
-        self.timeline = timeline
-        self.lower_protocols = []
-        self.keysize = keysize
-        self.num_keys = num_keys
-        self.keys = []
-        self.times = []
-        
-    def send_request(self):
-        for p in self.lower_protocols:
-            p.push(self.keysize, self.num_keys) # interface for BB84 to generate key
-            
-    def pop(self, info): # interface for BB84 to return generated keys
-        self.keys.append(info)
-        self.times.append(self.timeline.now() * 1e-9)
-
 ## Defines the message type
 class MessageType(Enum):
     REGULAR_MESSAGE = auto()
@@ -100,10 +82,11 @@ class MessageManager:
         qc0 (QuantumChannelEve): quantum channel end at node 1
         qc1 (QuantumChannelEve): quantum channel end at node 2
         km1 (KeyManager): node 1's key manager
-        km2 (KeyManager): node 2's key manager
+        km2 (KeyManager): node 2's key 
+        period (float): period (ms) to check the input csv file. The node owner will check for input in csv file at every period of time. 
     '''
 
-    def __init__(self, own: "QKDNode_GridQ", another: "QKDNode_GridQ", timeline: Timeline):
+    def __init__(self, own: "QKDNode_GridQ", another: "QKDNode_GridQ", timeline: Timeline, period = 0.1):  # TODO: change own to owner
 
         # Nodes
         self.own = own
@@ -134,63 +117,22 @@ class MessageManager:
         self.time_to_generate_keys = None
         self.total_sim_time = 0
 
-    
+    def read_input_csv_periodically(self):
+        '''
+        this function should be an infinite loop that reads csv files 
+
+        Read the file in the real time line
+        solution 1: use a thread
+
+        while (true..):
+            ...
+            time.sleep(period)
+        '''
+        pass
     def pair_message_manager(self, node):
         self.another_message_manager = node
 
-    def generate_keys(self, keysize , num_keys, internode_distance , attenuation, polarization_fidelity, eavesdropper_eff ):
-        """
-        Method to generate a specific amount of keys based on the size of the messages
 
-        Parameters:
-        sim_time: duration of simulation time (ms)
-        keysize: size of generated secure key (bits)
-        num_keys: number of keys generated (keys)
-        internode_distance: distance between two nodes (m)
-        attenuation: attenuation (db/km)
-        eavesdropper_efficiency = efficacy of eavesdropper
-        """
-        # begin by defining the simulation timeline with the correct simulation time
-
-        pair_bb84_protocols(self.own.protocol_stack[0], self.another.protocol_stack[0])
-
-        if self.qkd_stack_size > 1:
-            pair_cascade_protocols(self.own.protocol_stack[1], self.another.protocol_stack[1])
-        cc0 = ClassicalChannel("cc_n1_n2", self.tl, distance=internode_distance, delay = MILLISECOND)
-        cc1 = ClassicalChannel("cc_n2_n1", self.tl, distance=internode_distance, delay = MILLISECOND)
-        cc0.set_ends(self.own, self.another.name)
-        cc1.set_ends(self.another, self.own.name)
-        qc0 = QuantumChannelEve("qc_n1_n2", self.tl, attenuation=attenuation, distance=internode_distance,
-                            polarization_fidelity=polarization_fidelity, eavesdropper_efficiency = eavesdropper_eff)
-        qc1 = QuantumChannelEve("qc_n2_n1", self.tl, attenuation=attenuation, distance=internode_distance,
-                            polarization_fidelity=polarization_fidelity, eavesdropper_efficiency = eavesdropper_eff)
-        qc0.set_ends(self.own, self.another.name)
-        qc1.set_ends(self.another, self.own.name)
-
-
-        # instantiate our written keysize protocol
-        km1 = KeyManager(self.tl, keysize, num_keys)
-        km1.lower_protocols.append(self.own.protocol_stack[0])
-        self.own.protocol_stack[0].upper_protocols.append(km1)
-        km2 = KeyManager(self.tl, keysize, num_keys)
-        km2.lower_protocols.append(self.another.protocol_stack[0])
-        self.another.protocol_stack[0].upper_protocols.append(km2)
-        
-        # start simulation and record timing
-        self.tl.init()
-        km1.send_request()
-        self.tl.run()
-
-        ### setting class variabless
-        self.time_to_generate_keys = self.tl.now()
-        self.own_keys = np.append(self.own_keys,km1.keys)
-        self.another_keys = np.append(self.another_keys,km2.keys)
-        self.cc0 = cc0
-        self.cc1 = cc1
-        self.qc0 = qc0
-        self.qc1 = qc1
-        self.km1 = km1
-        self.km2 = km2
     
     ## Method to generate specific number of keys 
     def customize_keys(self, messages, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff):
@@ -211,6 +153,7 @@ class MessageManager:
             # encoded_messages.append(otp_encrypt(messages[i], self.own_keys[i])) ## chat-gpt encrypt
             encoded_messages.append(onetimepad.encrypt(messages[i], str(self.own_keys[i]))) ## onetimepad encryption
 
+        ## setting up messaging protocol
         self.own.protocol_stack.clear()
         self.own.protocols.clear()
         self.another.protocol_stack.clear()
@@ -294,9 +237,9 @@ def test(sim_time, msg, internode_distance, attenuation, polarization_fidelity, 
     # node 1 and 2 initialization    
     # Stack size = 1 means only BB84 will be implemented
         
-    node1 = QKDNode_GridQ("n1", tl, stack_size=2)    
+    node1 = QKDNode_GridQ("n1", tl, stack_size=1)    
     node1.set_seed(0)                           
-    node2 = QKDNode_GridQ("n2", tl, stack_size=2)     
+    node2 = QKDNode_GridQ("n2", tl, stack_size=1)     
     node2.set_seed(1)
 
     # if back up quantum channel exists set a back up quantum channel
@@ -309,26 +252,28 @@ def test(sim_time, msg, internode_distance, attenuation, polarization_fidelity, 
         node2.set_backup_qchannel(qc1_backup) 
 
     # message manager 1 and 2 initialization and pairing
-    n1 = MessageManager(node1, node2, tl)
-    n2 = MessageManager(node2, node1, tl)
+    message_manager_1 = MessageManager(node1, node2, tl)
+    message_manager_2 = MessageManager(node2, node1, tl)
     n1.pair_message_manager(n2)
 
     ### Sends message to other node
     # Effects: 1) generates keys for node1 and node2 
     # 2) Encrypts messages using node1's keys and sends to node2
     # 3) Node2 decrypts messages using its keys 
-    results = n1.send_message('n2', msg, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff)
+    results = message_manager_1.send_message('n2', msg, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff)
     return results
 
 ## main function 
 if __name__ == "__main__":
 
+    ## TODO: Put all the initalization in the main file
+    ## TODO: Areate a continuous reader which should read a csv file and detect changes
     write_input_powergrid_csv_file()
     filename = './power_grid_datafiles/power_grid_input.csv'
     msg_string = csv_to_string(filename)
 
-    time = test(sim_time = 1000, msg = msg_string, internode_distance= 1e3, 
-            attenuation = 1e-5, polarization_fidelity = 0.99, eavesdropper_eff = 0.0, backup_qc = True)  # TODO : the input for msg is string list but I only pass in a string so change that 
+    time = test(sim_time = 100, msg = msg_string, internode_distance= 1e3, 
+            attenuation = 1e-5, polarization_fidelity = 1, eavesdropper_eff = 0.0, backup_qc = True)  # TODO : the input for msg is string list but I only pass in a string so change that 
 
 
     print(f'End to end time: {time / 1e9} ms')
@@ -337,3 +282,4 @@ if __name__ == "__main__":
 
     
 
+    ############################# TODO: write a function to read input periodicallyz
