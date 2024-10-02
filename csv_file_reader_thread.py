@@ -1,11 +1,6 @@
-import csv
-import random
-import os  
-import time
-import threading
-import subprocess
+import csv, random, os, time, threading, subprocess 
 
-
+# The following method reads the power_grid_input.csv file and returns any new information that has been added to it
 def read_csv_file(file_path, last_row_count):
     # Initialize an empty list to store new rows
     new_rows = []
@@ -24,6 +19,7 @@ def read_csv_file(file_path, last_row_count):
 
     return [], last_row_count
 
+# The following method periodically uses the read_csv_file method to see if any new information has been added to the power_grid_input.csv file 
 def monitor_csv_file(interval=5):
     # Initialize the last row count to 0 (assuming no rows initially)
     last_row_count = 0
@@ -42,13 +38,7 @@ def monitor_csv_file(interval=5):
         # Wait for the specified interval before checking again
         time.sleep(interval)
 
-        print('main pr')
-
-# Path to the CSV file
-
-# # Call the function to start monitoring the CSV file for new rows
-# monitor_csv_file(csv_file_path, interval=5)  # Check every 5 seconds
-
+# The following method enables threading of the csv file monitoring and allows for shell commands while the main program is running
 def run_shell_command(command):
     try:
         # Use subprocess to run the command from the terminal
@@ -57,21 +47,4 @@ def run_shell_command(command):
     except subprocess.CalledProcessError as e:
         print(f"Error running command: {e.stderr.decode()}")
 
-if __name__ == "__main__":
-    # Create and start a thread for the forever loop
-    forever_loop_thread = threading.Thread(target=monitor_csv_file)
-    forever_loop_thread.daemon = True  # Daemon thread exits when the main program exits
-    forever_loop_thread.start()
 
-    # Run the interactive command input in the main thread
-    while True:
-        # Allow the user to input terminal commands
-        user_command = input("Enter a command to run (type 'exit' to quit): ")
-
-        if user_command.lower() == 'exit':
-            print("Exiting the program.")
-            break
-
-        # Start a new thread to execute the user command without blocking the loop
-        command_thread = threading.Thread(target=run_shell_command, args=(user_command,))
-        command_thread.start()

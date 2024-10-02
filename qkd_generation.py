@@ -1,6 +1,4 @@
-
-
-def generate_keys(self, keysize , num_keys, internode_distance , attenuation, polarization_fidelity, eavesdropper_eff ):
+def generate_keys(sender, reciever, qkd_stack_size, t1, keysize , num_keys, internode_distance , attenuation, polarization_fidelity, eavesdropper_eff ):
     """
     Method to generate a specific amount of keys based on the size of the messages
 
@@ -14,41 +12,41 @@ def generate_keys(self, keysize , num_keys, internode_distance , attenuation, po
     """
     # begin by defining the simulation timeline with the correct simulation time
 
-    pair_bb84_protocols(self.own.protocol_stack[0], self.another.protocol_stack[0])
+    pair_bb84_protocols(sender.protocol_stack[0], receiver.protocol_stack[0])
 
-    if self.qkd_stack_size > 1:
-        pair_cascade_protocols(self.own.protocol_stack[1], self.another.protocol_stack[1])
+    if qkd_stack_size > 1:
+        pair_cascade_protocols(sender.protocol_stack[1], receiver.protocol_stack[1])
         
-    cc0 = ClassicalChannel("cc_n1_n2", self.tl, distance=internode_distance, delay = MILLISECOND)
-    cc1 = ClassicalChannel("cc_n2_n1", self.tl, distance=internode_distance, delay = MILLISECOND)
-    cc0.set_ends(self.own, self.another.name)
-    cc1.set_ends(self.another, self.own.name)
-    qc0 = QuantumChannelEve("qc_n1_n2", self.tl, attenuation=attenuation, distance=internode_distance,
+    cc0 = ClassicalChannel("cc_n1_n2", tl, distance=internode_distance, delay = MILLISECOND)
+    cc1 = ClassicalChannel("cc_n2_n1", tl, distance=internode_distance, delay = MILLISECOND)
+    cc0.set_ends(sender, receiver.name)
+    cc1.set_ends(receiver, sender.name)
+    qc0 = QuantumChannelEve("qc_n1_n2", tl, attenuation=attenuation, distance=internode_distance,
                         polarization_fidelity=polarization_fidelity, eavesdropper_efficiency = eavesdropper_eff)
-    qc1 = QuantumChannelEve("qc_n2_n1", self.tl, attenuation=attenuation, distance=internode_distance,
+    qc1 = QuantumChannelEve("qc_n2_n1", tl, attenuation=attenuation, distance=internode_distance,
                         polarization_fidelity=polarization_fidelity, eavesdropper_efficiency = eavesdropper_eff)
-    qc0.set_ends(self.own, self.another.name)
-    qc1.set_ends(self.another, self.own.name)
+    qc0.set_ends(sender, receiver.name)
+    qc1.set_ends(receiver, sender.name)
 
 
     # instantiate our written keysize protocol
-    stack_index = self.qkd_stack_size - 1
-    km1 = KeyManager(self.tl, keysize, num_keys)
-    km1.lower_protocols.append(self.own.protocol_stack[stack_index])
-    self.own.protocol_stack[stack_index].upper_protocols.append(km1)
-    km2 = KeyManager(self.tl, keysize, num_keys)
-    km2.lower_protocols.append(self.another.protocol_stack[stack_index])
-    self.another.protocol_stack[stack_index].upper_protocols.append(km2)
+    stack_index = qkd_stack_size - 1
+    km1 = KeyManager(tl, keysize, num_keys)
+    km1.lower_protocols.append(sender.protocol_stack[stack_index])
+    sender.protocol_stack[stack_index].upper_protocols.append(km1)
+    km2 = KeyManager(tl, keysize, num_keys)
+    km2.lower_protocols.append(receiver.protocol_stack[stack_index])
+    receiver.protocol_stack[stack_index].upper_protocols.append(km2)
     
     # start simulation and record timing
-    self.tl.init()
+    tl.init()
     km1.send_request()
-    self.tl.run()
+    tl.run()
 
     ### setting class variabless
-    self.time_to_generate_keys = self.tl.now()
-    self.own_keys = np.append(self.own_keys,km1.keys)
-    self.another_keys = np.append(self.another_keys,km2.keys)
+    self.time_to_generate_keys = tl.now()
+    sender_keys = np.append(sender_keys,km1.keys)
+    receiver_keys = np.append(receiver_keys,km2.keys)
     self.cc0 = cc0
     self.cc1 = cc1
     self.qc0 = qc0

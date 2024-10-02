@@ -19,9 +19,27 @@ import onetimepad
 import csv
 
 ## local repo imports 
-from message_application_components.performance_metrics.message_accuracy import compare_strings_with_color
 from eavesdropper_implemented.node_GridQ import QKDNode_GridQ
-from message_application_components.power_grid_csv_generator import write_input_powergrid_csv_file, csv_to_string, string_to_csv
+from message_application_components.performance_metrics.message_accuracy import compare_strings_with_color
+from message_application_components.power_grid_csv_generator import write_input_to_powergrid_csv_file, csv_to_string, string_to_csv
+
+## Manages QKD keys
+class KeyManager:
+    def __init__(self, timeline, keysize, num_keys):
+        self.timeline = timeline
+        self.lower_protocols = []
+        self.keysize = keysize
+        self.num_keys = num_keys
+        self.keys = []
+        self.times = []
+        
+    def send_request(self):
+        for p in self.lower_protocols:
+            p.push(self.keysize, self.num_keys) # interface for BB84 to generate key
+            
+    def pop(self, info): # interface for BB84 to return generated keys
+        self.keys.append(info)
+        self.times.append(self.timeline.now() * 1e-9)
 
 ## Defines the message type
 class MessageType(Enum):
@@ -122,17 +140,72 @@ class MessageManager:
         this function should be an infinite loop that reads csv files 
 
         Read the file in the real time line
-        solution 1: use a thread
+        solution 1: 
 
         while (true..):
             ...
             time.sleep(period)
         '''
+
         pass
     def pair_message_manager(self, node):
         self.another_message_manager = node
 
+    def generate_keys(self, keysize , num_keys, internode_distance , attenuation, polarization_fidelity, eavesdropper_eff ):
+        """
+        Method to generate a specific amount of keys based on the size of the messages
 
+        Parameters:
+        sim_time: duration of simulation time (ms)
+        keysize: size of generated secure key (bits)
+        num_keys: number of keys generated (keys)
+        internode_distance: distance between two nodes (m)
+        attenuation: attenuation (db/km)
+        eavesdropper_efficiency = efficacy of eavesdropper
+        """
+        # begin by defining the simulation timeline with the correct simulation time
+
+        pair_bb84_protocols(self.own.protocol_stack[0], self.another.protocol_stack[0])
+
+        if self.qkd_stack_size > 1:
+            pair_cascade_protocols(self.own.protocol_stack[1], self.another.protocol_stack[1])
+            
+        cc0 = ClassicalChannel("cc_n1_n2", self.tl, distance=internode_distance, delay = MILLISECOND)
+        cc1 = ClassicalChannel("cc_n2_n1", self.tl, distance=internode_distance, delay = MILLISECOND)
+        cc0.set_ends(self.own, self.another.name)
+        cc1.set_ends(self.another, self.own.name)
+        qc0 = QuantumChannelEve("qc_n1_n2", self.tl, attenuation=attenuation, distance=internode_distance,
+                            polarization_fidelity=polarization_fidelity, eavesdropper_efficiency = eavesdropper_eff)
+        qc1 = QuantumChannelEve("qc_n2_n1", self.tl, attenuation=attenuation, distance=internode_distance,
+                            polarization_fidelity=polarization_fidelity, eavesdropper_efficiency = eavesdropper_eff)
+        qc0.set_ends(self.own, self.another.name)
+        qc1.set_ends(self.another, self.own.name)
+
+
+        # instantiate our written keysize protocol
+        stack_index = self.qkd_stack_size - 1
+        km1 = KeyManager(self.tl, keysize, num_keys)
+        km1.lower_protocols.append(self.own.protocol_stack[stack_index])
+        self.own.protocol_stack[stack_index].upper_protocols.append(km1)
+        km2 = KeyManager(self.tl, keysize, num_keys)
+        km2.lower_protocols.append(self.another.protocol_stack[stack_index])
+        self.another.protocol_stack[stack_index].upper_protocols.append(km2)
+        
+        # start simulation and record timing
+        self.tl.init()
+        km1.send_request()
+        self.tl.run()
+
+        ### setting class variabless
+        self.time_to_generate_keys = self.tl.now()
+        self.own_keys = np.append(self.own_keys,km1.keys)
+        self.another_keys = np.append(self.another_keys,km2.keys)
+        self.cc0 = cc0
+        self.cc1 = cc1
+        self.qc0 = qc0
+        self.qc1 = qc1
+        self.km1 = km1
+        self.km2 = km2
     
     ## Method to generate specific number of keys 
     def customize_keys(self, messages, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff):

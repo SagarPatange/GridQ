@@ -1,8 +1,8 @@
 import csv
 import random
-import json 
+import os  
 
-def write_input_powergrid_csv_file():
+def write_input_to_powergrid_csv_file(current_time):
     # Generate 5 real numbers rounded to 3 decimal places
     real_numbers = [round(random.random() * 100, 3) for _ in range(5)]
 
@@ -11,7 +11,7 @@ def write_input_powergrid_csv_file():
 
     # Create the dictionary with the specified structure
     data = {
-        "Time": 0.1,   ## TODO: change
+        "Time": current_time,   # TODO: change
         "P": real_numbers[0],
         "Q": real_numbers[1],
         "V": real_numbers[2],
@@ -24,18 +24,36 @@ def write_input_powergrid_csv_file():
     # Path to the CSV file where data will be written
     csv_file_path = './power_grid_datafiles/power_grid_input.csv'
 
-    # Open the CSV file for writing
-    with open(csv_file_path, mode='w', newline='') as file:
+    # Check if the file exists to determine whether to write the header
+    file_exists = os.path.exists(csv_file_path)
+
+    # Open the CSV file for appending data ('a' mode)
+    with open(csv_file_path, mode='a', newline='') as file:
         # Create a CSV writer object
         writer = csv.DictWriter(file, fieldnames=data.keys())
         
-        # Write the header (field names)
-        writer.writeheader()
+        # Write the header only if the file is new (doesn't exist)
+        if not file_exists:
+            writer.writeheader()
         
         # Write the data dictionary as a row in the CSV
         writer.writerow(data)
 
-    print(f"Data has been written to '{csv_file_path}'")
+    print(f"Data has been appended to '{csv_file_path}'")
+
+def erase_powergrid_csv_data():
+    # Read the headers from the file
+    csv_file_path = './power_grid_datafiles/power_grid_input.csv'
+    with open(csv_file_path, mode='r') as file:
+        reader = csv.reader(file)
+        headers = next(reader)  # Get the first row (headers)
+
+    # Rewrite the file, keeping only the headers
+    with open(csv_file_path, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(headers)  # Write the headers back to the file
+
+    print(f"Data deleted in '{csv_file_path}'.")
 
 def csv_to_string (csv_file_path):  
 
@@ -96,3 +114,6 @@ def string_to_csv (data_string):
             # Write the data rows
             csv_writer.writerows(data)
     
+if __name__ == "__main__":
+    # erase_powergrid_csv_data()
+    pass
