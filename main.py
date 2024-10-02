@@ -9,14 +9,15 @@ from sequence.qkd.cascade import pair_cascade_protocols
 from enum import Enum, auto
 from sequence.message import Message
 from sequence.constants import MILLISECOND
-import csv, random, os, time, threading, subprocess 
+import csv, random, os, time, threading, subprocess, queue
 from csv_file_reader_thread import run_shell_command, monitor_csv_file
 from message_application_components.power_grid_csv_generator import write_input_to_powergrid_csv_file
+from datetime import datetime
+
 
 def main():
 
     ################################# Parameter initalization of simulation:
-    key_size = 100
     sim_time = 1000               # ms
     polarization_fidelity = 0.97  # 
     attenuation = 1e-5            # db/km 
@@ -52,13 +53,12 @@ def main():
     qc0.set_ends(node1, node2.name)
     qc1.set_ends(node2, node1.name)
 
-
     # instantiate our written keysize protocol
     stack_size = 1    
-    km1 = KeyManager(tl, keysize, num_keys)
+    km1 = KeyManager(tl, keysize = 0, num_keys = 0)
     km1.lower_protocols.append(node1.protocol_stack[stack_size - 1])
     node1.protocol_stack[stack_size - 1].upper_protocols.append(km1)
-    km2 = KeyManager(tl, keysize, num_keys)
+    km2 = KeyManager(tl, keysize = 0, num_keys = 0)
     km2.lower_protocols.append(node2.protocol_stack[stack_size - 1])
     node2.protocol_stack[stack_size - 1].upper_protocols.append(km2)
     
@@ -81,7 +81,8 @@ def main():
     ################################# Start of simulation:
 
     # Create and start a thread for the forever loop
-    forever_loop_thread = threading.Thread(target=monitor_csv_file)
+    q = queue.Queue()
+    forever_loop_thread = threading.Thread(target=monitor_csv_file, args=('./power_grid_datafiles/power_grid_input.csv', 1, q))
     forever_loop_thread.daemon = True  # Daemon thread exits when the main program exits
     forever_loop_thread.start()
 
@@ -95,8 +96,19 @@ def main():
             break
 
         if user_command.lower() == 'generate data':
-            write_input_to_powergrid_csv_file()
+            current_time = datetime.now().strftime("%H:%M:%S")
+            write_input_to_powergrid_csv_file(current_time)
             print("Power Grid CSV updated")
+        
+        # Check if there are new results in the queue
+        try:
+            while not q.empty():
+                result = q.get_nowait()  # Non-blocking get
+                print("New data from CSV:", result)
+        except queue.Empty:
+            pass        
+        
+        print("Thread result:", result)
 
         # Start a new thread to execute the user command without blocking the loop
         command_thread = threading.Thread(target=run_shell_command, args=(user_command,))

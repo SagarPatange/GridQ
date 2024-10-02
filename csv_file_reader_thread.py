@@ -20,13 +20,11 @@ def read_csv_file(file_path, last_row_count):
     return [], last_row_count
 
 # The following method periodically uses the read_csv_file method to see if any new information has been added to the power_grid_input.csv file 
-def monitor_csv_file(interval=5):
+def monitor_csv_file(csv_file_path = './power_grid_datafiles/power_grid_input.csv', interval=5, que = None):
     # Initialize the last row count to 0 (assuming no rows initially)
     last_row_count = 0
-
     while True:
         # Check the CSV file for new rows
-        csv_file_path = './power_grid_datafiles/power_grid_input.csv'
         new_rows, last_row_count = read_csv_file(csv_file_path, last_row_count)
 
         # If there are new rows, print them
@@ -34,9 +32,12 @@ def monitor_csv_file(interval=5):
             print("New rows added:")
             for row in new_rows:
                 print(row)
-
+        
+        if que != None:
+            que.put(last_row_count)
         # Wait for the specified interval before checking again
         time.sleep(interval)
+
 
 # The following method enables threading of the csv file monitoring and allows for shell commands while the main program is running
 def run_shell_command(command):
