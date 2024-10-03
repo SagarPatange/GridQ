@@ -1,8 +1,21 @@
 import csv
 import random
 import os  
+import json
+from datetime import datetime
 
-def write_input_to_powergrid_csv_file(current_time):
+import csv
+import random
+import os
+
+# import csv
+import random
+import os
+
+def write_input_to_powergrid_csv_file(current_time, csv_file_path='./power_grid_datafiles/power_grid_input.csv'):
+    # Predefined headers
+    required_headers = ["Time", "P", "Q", "V", "f", "angle", "status", "mode"]
+
     # Generate 5 real numbers rounded to 3 decimal places
     real_numbers = [round(random.random() * 100, 3) for _ in range(5)]
 
@@ -11,7 +24,7 @@ def write_input_to_powergrid_csv_file(current_time):
 
     # Create the dictionary with the specified structure
     data = {
-        "Time": current_time,   # TODO: change
+        "Time": current_time,
         "P": real_numbers[0],
         "Q": real_numbers[1],
         "V": real_numbers[2],
@@ -21,29 +34,36 @@ def write_input_to_powergrid_csv_file(current_time):
         "mode": integers[1]
     }
 
-    # Path to the CSV file where data will be written
-    csv_file_path = './power_grid_datafiles/power_grid_input.csv'
-
-    # Check if the file exists to determine whether to write the header
+    # Check if the file exists
     file_exists = os.path.exists(csv_file_path)
+    
+    # Read existing content if the file exists
+    existing_data = []
+    if file_exists:
+        with open(csv_file_path, mode='r', newline='') as file:
+            csv_reader = csv.reader(file)
+            existing_data = list(csv_reader)  # Read all existing data
 
-    # Open the CSV file for appending data ('a' mode)
-    with open(csv_file_path, mode='a', newline='') as file:
-        # Create a CSV writer object
-        writer = csv.DictWriter(file, fieldnames=data.keys())
-        
-        # Write the header only if the file is new (doesn't exist)
-        if not file_exists:
-            writer.writeheader()
-        
-        # Write the data dictionary as a row in the CSV
+    # Open the file in write mode ('w') to overwrite it
+    with open(csv_file_path, mode='w', newline='') as file:
+        writer = csv.DictWriter(file, fieldnames=required_headers)
+
+        # Write the required headers at the top
+        writer.writeheader()
+
+        # Write existing data (if any), ignoring the previous headers
+        if file_exists and len(existing_data) > 1:  # If there is more than just the header
+            for row in existing_data[1:]:  # Skip the previous header
+                file.write(','.join(row) + '\n')
+
+        # Write the new data row
         writer.writerow(data)
 
-    print(f"Data has been appended to '{csv_file_path}'")
+    print(f"Data has been written to '{csv_file_path}'")
 
-def erase_powergrid_csv_data():
+
+def erase_powergrid_csv_data(csv_file_path = './power_grid_datafiles/power_grid_input.csv'):
     # Read the headers from the file
-    csv_file_path = './power_grid_datafiles/power_grid_input.csv'
     with open(csv_file_path, mode='r') as file:
         reader = csv.reader(file)
         headers = next(reader)  # Get the first row (headers)
@@ -78,7 +98,7 @@ def csv_to_string (csv_file_path):
     json_string = [json.dumps(json_data)]
 
     return json_string
-
+        
 def string_to_csv (data_string):  
 
     '''
@@ -114,6 +134,82 @@ def string_to_csv (data_string):
             # Write the data rows
             csv_writer.writerows(data)
     
+
+def save_data_to_csv(output_csv_path, data_row):
+    """
+    Appends the data row (without metadata) to the output CSV file.
+    """
+    try:
+        # Open the output CSV in append mode to add new rows
+        with open(output_csv_path, mode='a', newline='') as file:
+            writer = csv.writer(file)
+            # Write only the data row to the output CSV
+            writer.writerow(data_row)
+        print(f"Data saved to {output_csv_path}")
+    except Exception as e:
+        print(f"Error writing to file: {e}")
+        
+def append_json_to_csv(csv_file_path, json_string):
+    """
+    Converts a JSON string to a row in an existing CSV file.
+    The JSON string contains the metadata (headings) and the data.
+    """
+    try:
+        # Parse the JSON string into a dictionary
+        data_dict = json.loads(json_string)
+
+        # Read the existing CSV file to check for headers
+        with open(csv_file_path, mode='r', newline='') as file:
+            csv_reader = csv.reader(file)
+            headers = next(csv_reader)  # Extract existing CSV headers
+
+        # Ensure the keys in the JSON match the headers in the CSV
+        if set(data_dict.keys()) != set(headers):
+            print("The JSON keys do not match the CSV headers.")
+            return
+
+        # Append the data to the CSV file
+        with open(csv_file_path, mode='a', newline='') as file:
+            csv_writer = csv.DictWriter(file, fieldnames=headers)
+            # Write the data from the JSON string
+            csv_writer.writerow(data_dict)
+        print("Data successfully added to the CSV file.")
+
+    except FileNotFoundError:
+        print(f"File not found: {csv_file_path}")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+
+
+def read_csv_nth_row(csv_file_path, n):
+    """
+    Reads the nth row from the CSV file and returns a JSON string
+    with metadata as keys and data as values.
+    """
+    try:
+        with open(csv_file_path, mode='r') as file:
+            csv_reader = csv.reader(file)
+            # Extract the first row (headings)
+            headings = next(csv_reader)
+            
+            # Find the nth row
+            for current_row_index, row in enumerate(csv_reader, start=1):
+                if current_row_index == n:
+                    # Create a dictionary combining metadata and data
+                    row_data = {headings[i]: row[i] for i in range(len(headings))}
+                    # Convert the dictionary to a JSON string
+                    json_data = json.dumps(row_data, separators=(',', ':'))
+                    return json_data
+        return None  # If nth row does not exist
+    except FileNotFoundError:
+        print(f"File not found: {csv_file_path}")
+        return None
+
+
+
 if __name__ == "__main__":
-    # erase_powergrid_csv_data()
+    # erase_powergrid_csv_data('./power_grid_datafiles/power_grid_output.csv')
+    # current_time = datetime.now().strftime("%H:%M:%S")
+    # write_input_to_powergrid_csv_file(current_time, './power_grid_datafiles/power_grid_output.csv')    
     pass

@@ -1,51 +1,48 @@
-import csv, random, os, time, threading, subprocess 
+import threading, queue, time, csv, random, os
+from datetime import datetime
+from message_application_components.power_grid_csv_generator import write_input_to_powergrid_csv_file
 
-# The following method reads the power_grid_input.csv file and returns any new information that has been added to it
-def read_csv_file(file_path, last_row_count):
-    # Initialize an empty list to store new rows
-    new_rows = []
 
-    # Check if the file exists
-    if os.path.exists(file_path):
-        with open(file_path, mode='r', newline='') as file:
-            reader = csv.reader(file)
-            all_rows = list(reader)
+# Function to monitor the CSV file for new data and add it to the queue
+def monitor_csv_file(file_path, interval, q):
+    last_line_count = 0
 
-            # If there are more rows than the last recorded count, there are new rows
-            current_row_count = len(all_rows)
-            if current_row_count > last_row_count:
-                new_rows = all_rows[last_row_count:]  # Get only new rows
-                return new_rows, current_row_count
-
-    return [], last_row_count
-
-# The following method periodically uses the read_csv_file method to see if any new information has been added to the power_grid_input.csv file 
-def monitor_csv_file(csv_file_path = './power_grid_datafiles/power_grid_input.csv', interval=5, que = None):
-    # Initialize the last row count to 0 (assuming no rows initially)
-    last_row_count = 0
     while True:
-        # Check the CSV file for new rows
-        new_rows, last_row_count = read_csv_file(csv_file_path, last_row_count)
+        time.sleep(interval)  # Wait for the interval time
+        try:
+            with open(file_path, mode='r') as file:
+                csv_reader = list(csv.reader(file))
+                current_line_count = len(csv_reader)
 
-        # If there are new rows, print them
-        if new_rows:
-            print("New rows added:")
-            for row in new_rows:
-                print(row)
-        
-        if que != None:
-            que.put(last_row_count)
-        # Wait for the specified interval before checking again
-        time.sleep(interval)
+                # If new rows have been added, put them in the queue
+                if current_line_count > last_line_count:
+                    new_rows = csv_reader[last_line_count:]  # Get only new rows
+                    last_line_count = current_line_count  # Update the last known line count
+                    q.put(last_line_count)  # Add each new row to the queue
 
+        except FileNotFoundError:
+            print(f"File not found: {file_path}")
+            continue
 
-# The following method enables threading of the csv file monitoring and allows for shell commands while the main program is running
+# Function to simulate running shell commands
 def run_shell_command(command):
-    try:
-        # Use subprocess to run the command from the terminal
-        result = subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        print(result.stdout.decode())  # Print the command output
-    except subprocess.CalledProcessError as e:
-        print(f"Error running command: {e.stderr.decode()}")
+    print(f"Running command: {command}")
 
+def user_input():
+    """
+    Handles user input in a separate thread.
+    """
+    while True:
+        # Allow the user to input terminal commands
+        user_command = input("Enter a command (type 'exit' to quit and 'generate data' to add data to power_grid_input.csv): ")
 
+        if user_command.lower() == 'exit':
+            print("Exiting the program.")
+            os._exit(0)
+        if user_command.lower() == 'generate data':
+            current_time = datetime.now().strftime("%H:%M:%S")
+            write_input_to_powergrid_csv_file(current_time)
+
+        # Start a new thread to execute the user command without blocking the loop
+        command_thread = threading.Thread(target=run_shell_command, args=(user_command,))
+        command_thread.start()

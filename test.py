@@ -1,24 +1,45 @@
-import threading
-import time
-import queue
+import csv
+import json
 
-# Function that will run in a separate thread
-def threaded_function(output_queue, data):
-    time.sleep(2)  # Simulating some work
-    result = data * 2  # Example result of a computation
-    output_queue.put(result)  # Put the result into the queue
+def append_json_to_csv(json_string, csv_file_path):
+    """
+    Converts a JSON string to a row in an existing CSV file.
+    The JSON string contains the metadata (headings) and the data.
+    """
+    try:
+        # Parse the JSON string into a dictionary
+        data_dict = json.loads(json_string)
 
-# Main code
-if __name__ == "__main__":
-    q = queue.Queue()  # Create a Queue to store the result
-    
-    # Create and start the thread, passing the queue and some data
-    thread = threading.Thread(target=threaded_function, args=(q, 5))
-    thread.start()
+        # Read the existing CSV file to check for headers
+        with open(csv_file_path, mode='r', newline='') as file:
+            csv_reader = csv.reader(file)
+            headers = next(csv_reader)  # Extract existing CSV headers
 
-    # Wait for the thread to finish
-    thread.join()
+        # Ensure the keys in the JSON match the headers in the CSV
+        if set(data_dict.keys()) != set(headers):
+            print("The JSON keys do not match the CSV headers.")
+            return
 
-    # Retrieve the result from the queue
-    result = q.get()
-    print("Thread result:", result)
+        # Append the data to the CSV file
+        with open(csv_file_path, mode='a', newline='') as file:
+            csv_writer = csv.DictWriter(file, fieldnames=headers)
+            # Write the data from the JSON string
+            csv_writer.writerow(data_dict)
+        print("Data successfully added to the CSV file.")
+
+    except FileNotFoundError:
+        print(f"File not found: {csv_file_path}")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+# Example usage
+json_string = """
+{
+    "Name": "Charlie",
+    "Age": "35",
+    "City": "Los Angeles"
+}
+"""
+csv_file_path = 'example.csv'
+
+append_json_to_csv(json_string, csv_file_path)

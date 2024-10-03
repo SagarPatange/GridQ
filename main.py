@@ -1,6 +1,6 @@
 from message_app import MessageManager
 from eavesdropper_implemented.node_GridQ import QKDNode_GridQ
-from qkd_generation import KeyManager
+from qkd_generation import KeyManager, customize_keys
 from sequence.kernel.timeline import Timeline
 from sequence.components.optical_channel import ClassicalChannel
 from eavesdropper_implemented.quantum_channel_eve import QuantumChannelEve
@@ -9,17 +9,17 @@ from sequence.qkd.cascade import pair_cascade_protocols
 from enum import Enum, auto
 from sequence.message import Message
 from sequence.constants import MILLISECOND
-import csv, random, os, time, threading, subprocess, queue
-from csv_file_reader_thread import run_shell_command, monitor_csv_file
-from message_application_components.power_grid_csv_generator import write_input_to_powergrid_csv_file
+import csv, random, os, time, threading, subprocess, queue, sys
+from csv_file_reader_thread import run_shell_command, monitor_csv_file, user_input
+from message_application_components.power_grid_csv_generator import write_input_to_powergrid_csv_file, erase_powergrid_csv_data, read_csv_nth_row
 from datetime import datetime
 
 
 def main():
 
     ################################# Parameter initalization of simulation:
-    sim_time = 1000               # ms
-    polarization_fidelity = 0.97  # 
+    sim_time = 10000000000               # ms
+    polarization_fidelity = 1  # 
     attenuation = 1e-5            # db/km 
     internode_distance = 1e3      # km
     eavesdropper_eff = 0.0
@@ -74,45 +74,47 @@ def main():
         node2.set_backup_qchannel(qc1_backup) 
 
     # Initalizes message manager 1 and 2 initialization and pairing
-    message_manager_1 = MessageManager(node1, node2, tl)
-    message_manager_2 = MessageManager(node2, node1, tl)
+    message_manager_1 = MessageManager(node1, node2, tl, km1, km2)
+    message_manager_2 = MessageManager(node2, node1, tl, km2, km1)
     message_manager_1.pair_message_manager(message_manager_2)
 
     ################################# Start of simulation:
 
-    # Create and start a thread for the forever loop
+    # Clears the `power_grid_input.csv` file 
+    erase_powergrid_csv_data('./power_grid_datafiles/power_grid_input.csv')
+    erase_powergrid_csv_data('./power_grid_datafiles/power_grid_output.csv')
+
     q = queue.Queue()
+
+    # Create and start a thread for the forever loop
     forever_loop_thread = threading.Thread(target=monitor_csv_file, args=('./power_grid_datafiles/power_grid_input.csv', 1, q))
     forever_loop_thread.daemon = True  # Daemon thread exits when the main program exits
     forever_loop_thread.start()
 
-    # Run the interactive command input in the main thread
+    user_input_thread = threading.Thread(target=user_input)
+    user_input_thread.daemon = True  # Daemon thread
+    user_input_thread.start()
+
+    # Run the interactive command input in the main 
+    current_csv_row = 1
+    new_csv_row = 1
+
     while True:
-        # Allow the user to input terminal commands
-        user_command = input("Enter a command to run (type 'exit' to quit and 'generate data' to add data to power_grid_input.csv): ")
-
-        if user_command.lower() == 'exit':
-            print("Exiting the program.")
-            break
-
-        if user_command.lower() == 'generate data':
-            current_time = datetime.now().strftime("%H:%M:%S")
-            write_input_to_powergrid_csv_file(current_time)
-            print("Power Grid CSV updated")
-        
         # Check if there are new results in the queue
         try:
             while not q.empty():
-                result = q.get_nowait()  # Non-blocking get
-                print("New data from CSV:", result)
+                new_csv_row = q.get_nowait()  # Non-blocking get
+                print("\nNew data from CSV:", new_csv_row)
         except queue.Empty:
-            pass        
-        
-        print("Thread result:", result)
+            pass
 
-        # Start a new thread to execute the user command without blocking the loop
-        command_thread = threading.Thread(target=run_shell_command, args=(user_command,))
-        command_thread.start()
+        if new_csv_row > current_csv_row:
+            for i in range(current_csv_row , new_csv_row ):
+                new_data = [read_csv_nth_row('./power_grid_datafiles/power_grid_input.csv', i)]
+
+                message_manager_1.send_message(node2.name, new_data, km1, km2, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff)
+            current_csv_row = new_csv_row
+
         
 if __name__ == "__main__":
     main()

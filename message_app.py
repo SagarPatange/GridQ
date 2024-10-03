@@ -21,25 +21,8 @@ import csv
 ## local repo imports 
 from eavesdropper_implemented.node_GridQ import QKDNode_GridQ
 from message_application_components.performance_metrics.message_accuracy import compare_strings_with_color
-from message_application_components.power_grid_csv_generator import write_input_to_powergrid_csv_file, csv_to_string, string_to_csv
-
-## Manages QKD keys
-class KeyManager:
-    def __init__(self, timeline, keysize, num_keys):
-        self.timeline = timeline
-        self.lower_protocols = []
-        self.keysize = keysize
-        self.num_keys = num_keys
-        self.keys = []
-        self.times = []
-        
-    def send_request(self):
-        for p in self.lower_protocols:
-            p.push(self.keysize, self.num_keys) # interface for BB84 to generate key
-            
-    def pop(self, info): # interface for BB84 to return generated keys
-        self.keys.append(info)
-        self.times.append(self.timeline.now() * 1e-9)
+from message_application_components.power_grid_csv_generator import write_input_to_powergrid_csv_file, csv_to_string, append_json_to_csv
+from qkd_generation import KeyManager, customize_keys 
 
 ## Defines the message type
 class MessageType(Enum):
@@ -104,7 +87,7 @@ class MessageManager:
         period (float): period (ms) to check the input csv file. The node owner will check for input in csv file at every period of time. 
     '''
 
-    def __init__(self, own: "QKDNode_GridQ", another: "QKDNode_GridQ", timeline: Timeline, period = 0.1):  # TODO: change own to owner
+    def __init__(self, own: "QKDNode_GridQ", another: "QKDNode_GridQ", timeline: Timeline, key_manager1: "KeyManager", key_manager2: "KeyManager"):  # TODO: change own to owner
 
         # Nodes
         self.own = own
@@ -119,12 +102,8 @@ class MessageManager:
 
         # Components
         self.tl = timeline
-        self.cc0 = None
-        self.cc1 = None
-        self.qc0 = None
-        self.qc1 = None
-        self.km1 = None
-        self.km2 = None
+        self.km1 = key_manager1
+        self.km2 = key_manager2
 
         # Message Variables
         self.messages_recieved = []
@@ -135,19 +114,6 @@ class MessageManager:
         self.time_to_generate_keys = None
         self.total_sim_time = 0
 
-    def read_input_csv_periodically(self):
-        '''
-        this function should be an infinite loop that reads csv files 
-
-        Read the file in the real time line
-        solution 1: 
-
-        while (true..):
-            ...
-            time.sleep(period)
-        '''
-
-        pass
     def pair_message_manager(self, node):
         self.another_message_manager = node
 
@@ -200,10 +166,6 @@ class MessageManager:
         self.time_to_generate_keys = self.tl.now()
         self.own_keys = np.append(self.own_keys,km1.keys)
         self.another_keys = np.append(self.another_keys,km2.keys)
-        self.cc0 = cc0
-        self.cc1 = cc1
-        self.qc0 = qc0
-        self.qc1 = qc1
         self.km1 = km1
         self.km2 = km2
     
@@ -216,10 +178,23 @@ class MessageManager:
         self.generate_keys(bits_needed, num_keys, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff)
  
     ## Method to send messages
-    def send_message(self, dst: str, messages: list[str], internode_distance, attenuation, polarization_fidelity, eavesdropper_eff):
+    def send_message(self, dst: str, messages: list[str], km1, km2, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff):
 
         ## Generating right appropriate amount of keys
-        self.customize_keys(messages, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff)
+
+        key_size = customize_keys(messages)
+        num_keys = len(messages)
+        self.km1.keysize = key_size
+        self.km2.keysize = key_size
+        self.km1.num_keys = num_keys
+        self.km2.num_keys = num_keys
+
+        self.km1.send_request()
+        self.tl.run()
+
+        self.time_to_generate_keys = self.tl.now()
+        self.own_keys = np.append(self.own_keys,km1.keys)
+        self.another_keys = np.append(self.another_keys,km2.keys)
 
         encoded_messages = []
         for i in range(len(messages)):
@@ -264,7 +239,8 @@ class MessageManager:
         ## Message Update
         for i in range(len(messages)):
             compare_strings_with_color(messages[i], decrypted_messages_recieved[i])
-            string_to_csv(decrypted_messages_recieved[i])
+            output_csv_path = './power_grid_datafiles/power_grid_output.csv'
+            append_json_to_csv(output_csv_path, decrypted_messages_recieved[i])
 
         ## Metrics update
         self.total_sim_time = self.tl.now()
@@ -336,21 +312,21 @@ def test(sim_time, msg, internode_distance, attenuation, polarization_fidelity, 
     results = message_manager_1.send_message('n2', msg, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff)
     return results
 
-## main function 
-if __name__ == "__main__":
+# ## main function 
+# if __name__ == "__main__":
 
-    ## TODO: Put all the initalization in the main file
-    ## TODO: Areate a continuous reader which should read a csv file and detect changes
-    write_input_powergrid_csv_file()
-    filename = './power_grid_datafiles/power_grid_input.csv'
-    msg_string = csv_to_string(filename)
+#     ## TODO: Put all the initalization in the main file
+#     ## TODO: Areate a continuous reader which should read a csv file and detect changes
+#     write_input_powergrid_csv_file()
+#     filename = './power_grid_datafiles/power_grid_input.csv'
+#     msg_string = csv_to_string(filename)
 
-    time = test(sim_time = 100, msg = msg_string, internode_distance= 1e3, 
-            attenuation = 1e-5, polarization_fidelity = 1, eavesdropper_eff = 0.0, backup_qc = True)  # TODO : the input for msg is string list but I only pass in a string so change that 
+#     time = test(sim_time = 100, msg = msg_string, internode_distance= 1e3, 
+#             attenuation = 1e-5, polarization_fidelity = 1, eavesdropper_eff = 0.0, backup_qc = True)  # TODO : the input for msg is string list but I only pass in a string so change that 
 
 
-    print(f'End to end time: {time / 1e9} ms')
-    print('Created `power_grid_output.csv`')
+#     print(f'End to end time: {time / 1e9} ms')
+#     print('Created `power_grid_output.csv`')
         
 
     
