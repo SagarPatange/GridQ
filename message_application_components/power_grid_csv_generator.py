@@ -20,7 +20,7 @@ def write_input_to_powergrid_csv_file(current_time, csv_file_path='./power_grid_
     real_numbers = [round(random.random() * 100, 3) for _ in range(5)]
 
     # Generate 2 integers between 0 and 100
-    integers = [random.randint(0, 100) for _ in range(2)]
+    # integers = [random.randint(0, 100) for _ in range(2)]
 
     # Create the dictionary with the specified structure
     data = {
@@ -30,8 +30,8 @@ def write_input_to_powergrid_csv_file(current_time, csv_file_path='./power_grid_
         "V": real_numbers[2],
         "f": real_numbers[3],
         "angle": real_numbers[4],
-        "status": integers[0],
-        "mode": integers[1]
+        # "status": integers[0],
+        # "mode": integers[1]
     }
 
     # Check if the file exists

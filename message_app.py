@@ -1,28 +1,18 @@
 ## imports from sequence package
 from sequence.kernel.timeline import Timeline
-from sequence.components.optical_channel import ClassicalChannel
-from eavesdropper_implemented.quantum_channel_eve import QuantumChannelEve
-from sequence.qkd.BB84 import pair_bb84_protocols
-from sequence.qkd.cascade import pair_cascade_protocols
 from sequence.message import Message
 from enum import Enum, auto
 from sequence.message import Message
-import sequence.utils.log as log
-from sequence.constants import MILLISECOND
-import logging
 
 ## package imports
-import math
 import numpy as np
-import json
 import onetimepad
-import csv
 
 ## local repo imports 
 from eavesdropper_implemented.node_GridQ import QKDNode_GridQ
 from message_application_components.performance_metrics.message_accuracy import compare_strings_with_color
-from message_application_components.power_grid_csv_generator import write_input_to_powergrid_csv_file, csv_to_string, append_json_to_csv
-from qkd_generation import KeyManager, customize_keys 
+from message_application_components.power_grid_csv_generator import append_json_to_csv
+from message_application_components.qkd_generation import KeyManager, customize_keys 
 
 ## Defines the message type
 class MessageType(Enum):
@@ -115,70 +105,10 @@ class MessageManager:
         self.total_sim_time = 0
 
     def pair_message_manager(self, node):
-        self.another_message_manager = node
-
-    def generate_keys(self, keysize , num_keys, internode_distance , attenuation, polarization_fidelity, eavesdropper_eff ):
-        """
-        Method to generate a specific amount of keys based on the size of the messages
-
-        Parameters:
-        sim_time: duration of simulation time (ms)
-        keysize: size of generated secure key (bits)
-        num_keys: number of keys generated (keys)
-        internode_distance: distance between two nodes (m)
-        attenuation: attenuation (db/km)
-        eavesdropper_efficiency = efficacy of eavesdropper
-        """
-        # begin by defining the simulation timeline with the correct simulation time
-
-        pair_bb84_protocols(self.own.protocol_stack[0], self.another.protocol_stack[0])
-
-        if self.qkd_stack_size > 1:
-            pair_cascade_protocols(self.own.protocol_stack[1], self.another.protocol_stack[1])
-            
-        cc0 = ClassicalChannel("cc_n1_n2", self.tl, distance=internode_distance, delay = MILLISECOND)
-        cc1 = ClassicalChannel("cc_n2_n1", self.tl, distance=internode_distance, delay = MILLISECOND)
-        cc0.set_ends(self.own, self.another.name)
-        cc1.set_ends(self.another, self.own.name)
-        qc0 = QuantumChannelEve("qc_n1_n2", self.tl, attenuation=attenuation, distance=internode_distance,
-                            polarization_fidelity=polarization_fidelity, eavesdropper_efficiency = eavesdropper_eff)
-        qc1 = QuantumChannelEve("qc_n2_n1", self.tl, attenuation=attenuation, distance=internode_distance,
-                            polarization_fidelity=polarization_fidelity, eavesdropper_efficiency = eavesdropper_eff)
-        qc0.set_ends(self.own, self.another.name)
-        qc1.set_ends(self.another, self.own.name)
-
-
-        # instantiate our written keysize protocol
-        stack_index = self.qkd_stack_size - 1
-        km1 = KeyManager(self.tl, keysize, num_keys)
-        km1.lower_protocols.append(self.own.protocol_stack[stack_index])
-        self.own.protocol_stack[stack_index].upper_protocols.append(km1)
-        km2 = KeyManager(self.tl, keysize, num_keys)
-        km2.lower_protocols.append(self.another.protocol_stack[stack_index])
-        self.another.protocol_stack[stack_index].upper_protocols.append(km2)
-        
-        # start simulation and record timing
-        self.tl.init()
-        km1.send_request()
-        self.tl.run()
-
-        ### setting class variabless
-        self.time_to_generate_keys = self.tl.now()
-        self.own_keys = np.append(self.own_keys,km1.keys)
-        self.another_keys = np.append(self.another_keys,km2.keys)
-        self.km1 = km1
-        self.km2 = km2
-    
-    ## Method to generate specific number of keys 
-    def customize_keys(self, messages, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff):
-        max_length = len(max(messages, key=len))
-        num_keys = len(messages)
-        max_decimal_number = 10**max_length - 1
-        bits_needed = math.ceil(math.log2(max_decimal_number + 1))
-        self.generate_keys(bits_needed, num_keys, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff)
+        self.another_message_manager = node    
  
     ## Method to send messages
-    def send_message(self, dst: str, messages: list[str], km1, km2, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff):
+    def send_message(self, dst: str, messages: list[str]):
 
         ## Generating right appropriate amount of keys
 
@@ -193,8 +123,8 @@ class MessageManager:
         self.tl.run()
 
         self.time_to_generate_keys = self.tl.now()
-        self.own_keys = np.append(self.own_keys,km1.keys)
-        self.another_keys = np.append(self.another_keys,km2.keys)
+        self.own_keys = np.append(self.own_keys,self.km1.keys)
+        self.another_keys = np.append(self.another_keys,self.km2.keys)
 
         encoded_messages = []
         for i in range(len(messages)):
@@ -249,86 +179,3 @@ class MessageManager:
         del self.another_keys
 
         return self.total_sim_time
-
-## Testing method
-def test(sim_time, msg, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff, backup_qc):
-    '''
-    Test which simulates sending classical messages using QKD, only using the BB84 protocol
-    Parameters:
-    sim_time: duration of simulation time (ms)
-    msg: list of messages needed to be sent
-    keysize: size of generated secure key (bits)
-    num_keys: number of keys generated (keys)
-    internode_distance: distance between two nodes (m)
-    attenuation: attenuation (db/km)
-    eavesdropper_efficiency = efficacy of eavesdropper
-    '''
-
-    ### Initializes Messanger App
-    # timeline initialization
-    tl = Timeline(sim_time * 1e9)   
-
-    # log_filename = 'log'
-    # log.set_logger(__name__, tl, log_filename)
-    # log.set_logger_level('DEBUG')
-    # modules = ['timeline', 'message_app', 'BB84_eve', 'quantum_channel_eve']
-    # for module in modules:
-    #     log.track_module(module)
-
-    ######################### Second way of logging
-    # level = logging.DEBUG
-    # #level = logging.INFO
-    # # level = logging.WARNING
-    # logging.basicConfig(level=level, filename='', filemode='w')
-    
-
-
-    # node 1 and 2 initialization    
-    # Stack size = 1 means only BB84 will be implemented
-        
-    node1 = QKDNode_GridQ("n1", tl, stack_size=1)    
-    node1.set_seed(0)                           
-    node2 = QKDNode_GridQ("n2", tl, stack_size=1)     
-    node2.set_seed(1)
-
-    # if back up quantum channel exists set a back up quantum channel
-    if backup_qc:
-        qc0_backup = QuantumChannelEve("qc_n1_n2_backup", tl, attenuation=attenuation, distance=internode_distance,
-                                polarization_fidelity=1, eavesdropper_efficiency = 0.0)
-        qc1_backup = QuantumChannelEve("qc_n2_n1_backup", tl, attenuation=attenuation, distance=internode_distance,
-                                polarization_fidelity=1, eavesdropper_efficiency = 0.0)
-        node1.set_backup_qchannel(qc0_backup)
-        node2.set_backup_qchannel(qc1_backup) 
-
-    # message manager 1 and 2 initialization and pairing
-    message_manager_1 = MessageManager(node1, node2, tl)
-    message_manager_2 = MessageManager(node2, node1, tl)
-    n1.pair_message_manager(n2)
-
-    ### Sends message to other node
-    # Effects: 1) generates keys for node1 and node2 
-    # 2) Encrypts messages using node1's keys and sends to node2
-    # 3) Node2 decrypts messages using its keys 
-    results = message_manager_1.send_message('n2', msg, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff)
-    return results
-
-# ## main function 
-# if __name__ == "__main__":
-
-#     ## TODO: Put all the initalization in the main file
-#     ## TODO: Areate a continuous reader which should read a csv file and detect changes
-#     write_input_powergrid_csv_file()
-#     filename = './power_grid_datafiles/power_grid_input.csv'
-#     msg_string = csv_to_string(filename)
-
-#     time = test(sim_time = 100, msg = msg_string, internode_distance= 1e3, 
-#             attenuation = 1e-5, polarization_fidelity = 1, eavesdropper_eff = 0.0, backup_qc = True)  # TODO : the input for msg is string list but I only pass in a string so change that 
-
-
-#     print(f'End to end time: {time / 1e9} ms')
-#     print('Created `power_grid_output.csv`')
-        
-
-    
-
-    ############################# TODO: write a function to read input periodicallyz

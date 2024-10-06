@@ -11,30 +11,17 @@ import numpy as np
 
 if TYPE_CHECKING:
     from sequence.kernel.timeline import Timeline
-    from sequence.message import Message
     from sequence.protocol import StackProtocol
-    from sequence.resource_management.memory_manager import MemoryInfo
-    from sequence.network_management.reservation import Reservation
-    from sequence.components.optical_channel import QuantumChannel, ClassicalChannel
-    from sequence.components.memory import Memory
     from sequence.components.photon import Photon
-    from sequence.app.random_request import RandomRequestApp
 
 from sequence.kernel.entity import Entity
-from sequence.components.memory import MemoryArray
-from sequence.components.bsm import SingleAtomBSM
 from sequence.components.light_source import LightSource
 from sequence.components.detector import QSDetector, QSDetectorPolarization, QSDetectorTimeBin
-from sequence.qkd.BB84 import BB84
 from sequence.qkd.cascade import Cascade
-from sequence.entanglement_management.generation import EntanglementGenerationB
-from sequence.resource_management.resource_manager import ResourceManager
-from sequence.network_management.network_manager import NewNetworkManager
 from sequence.utils.encoding import *
 from sequence.utils import log
 from eavesdropper_implemented.BB84_eve import BB84_GridQ
-
-from sequence.topology.node import Node, QKDNode
+from sequence.topology.node import Node
 
 class Node_GridQ(Node):
     """Base node type.

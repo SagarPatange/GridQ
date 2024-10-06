@@ -1,21 +1,10 @@
 ## imports from sequence package
-from sequence.kernel.timeline import Timeline
-from sequence.components.optical_channel import ClassicalChannel
-from eavesdropper_implemented.quantum_channel_eve import QuantumChannelEve
-from sequence.qkd.BB84 import pair_bb84_protocols
-from sequence.qkd.cascade import pair_cascade_protocols
-from sequence.message import Message
-from enum import Enum, auto
-from sequence.message import Message
-import sequence.utils.log as log
-from sequence.constants import MILLISECOND
-import logging
+
 import math
 
 ## Method to generate specific number of keys 
 def customize_keys(messages):
     max_length = len(max(messages, key=len))
-    num_keys = len(messages)
     max_decimal_number = 10**max_length - 1
     bits_needed = math.ceil(math.log2(max_decimal_number + 1))
     return bits_needed

@@ -8,7 +8,7 @@ from sequence.qkd.BB84 import pair_bb84_protocols
 from sequence.qkd.cascade import pair_cascade_protocols
 from sequence.constants import MILLISECOND
 import threading, queue
-from message_application_components.csv_file_reader_thread import monitor_csv_file
+from message_application_components.csv_file_reader_thread import monitor_csv_file, user_input
 from message_application_components.power_grid_csv_generator import erase_powergrid_csv_data, read_csv_nth_row
 
 
@@ -107,6 +107,11 @@ def main():
     forever_loop_thread.daemon = True  # Daemon thread exits when the main program exits
     forever_loop_thread.start()
 
+    ##################################################### TODO: write a different program to get the input 
+    # Continually check for user input in the shell
+    user_input_thread = threading.Thread(target=user_input)
+    user_input_thread.daemon = True  # Daemon thread
+    user_input_thread.start()
     #####################################################
     # Run the interactive command input in the main 
     current_csv_row = 1
