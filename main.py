@@ -19,13 +19,13 @@ def main():
     ################################# Parameter initalization of simulation:
 
     # General Simulation Variables
-    sim_time = 1000               # ms
-    polarization_fidelity = 1     # 
+    sim_time = 1000               # sim_time (float): estimated real time allowed for key generation simulation to run
+    polarization_fidelity = 1     # polarization_fidelity (float): fidelity of quantum channel, probability of qubit being unaffected by noise. 
     attenuation = 2e-4            # standard value for attenuation (db/m) 
-    internode_distance = 1e3      # km
-    frequency = 8e7               # frequency (float): maximum frequency of qubit transmission (in Hz) (default 8e7).
-    eavesdropper_eff = 0.0
-    stack_size = 1                # TODO: add all var here
+    internode_distance = 1e3      # internode_distance (float): distance between two nodes (km)
+    qubit_frequency = 8e7         # qubit_frequency (float): maximum frequency of qubit transmission (in Hz) (default 8e7).
+    eavesdropper_eff = 0.0        # eavesdropper_eff (float): added noise which is the probability of qubit being affected by noise of an eavesdropper. 
+    stack_size = 1                # stack_size (int: 1, 2, 3, 4, or 5): 1) only BB84 implemented in QKD, 2) BB84 and Cascade implemented in QKD
 
     # Lightsource Variables 
     frequency=1e6                 # frequency (float): frequency (in Hz) of photon creation (default 8e7).
@@ -63,9 +63,9 @@ def main():
     cc0.set_ends(node1, node2.name)
     cc1.set_ends(node2, node1.name)
     qc0 = QuantumChannelEve("qc_n1_n2", tl, attenuation=attenuation, distance=internode_distance,
-                        polarization_fidelity=polarization_fidelity, eavesdropper_efficiency = eavesdropper_eff)
+                        polarization_fidelity=polarization_fidelity, frequency= qubit_frequency, eavesdropper_efficiency = eavesdropper_eff)
     qc1 = QuantumChannelEve("qc_n2_n1", tl, attenuation=attenuation, distance=internode_distance,
-                        polarization_fidelity=polarization_fidelity, eavesdropper_efficiency = eavesdropper_eff)
+                        polarization_fidelity=polarization_fidelity, frequency= qubit_frequency, eavesdropper_efficiency = eavesdropper_eff)
     qc0.set_ends(node1, node2.name)
     qc1.set_ends(node2, node1.name)
 
@@ -84,8 +84,8 @@ def main():
     # Initalizes back up quantum channel. Set to `False` by default
     backup_qc = False
     if backup_qc:
-        qc0_backup = QuantumChannelEve("qc_n1_n2_backup", tl, attenuation=attenuation, distance=internode_distance, polarization_fidelity=1, eavesdropper_efficiency = 0.0)
-        qc1_backup = QuantumChannelEve("qc_n2_n1_backup", tl, attenuation=attenuation, distance=internode_distance, polarization_fidelity=1, eavesdropper_efficiency = 0.0)
+        qc0_backup = QuantumChannelEve("qc_n1_n2_backup", tl, attenuation=attenuation, distance=internode_distance, polarization_fidelity=1, frequency= qubit_frequency, eavesdropper_efficiency = 0.0)
+        qc1_backup = QuantumChannelEve("qc_n2_n1_backup", tl, attenuation=attenuation, distance=internode_distance, polarization_fidelity=1, frequency= qubit_frequency, eavesdropper_efficiency = 0.0)
         node1.set_backup_qchannel(qc0_backup)
         node2.set_backup_qchannel(qc1_backup) 
 
