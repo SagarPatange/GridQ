@@ -4,17 +4,10 @@ import os
 import json
 from datetime import datetime
 
-import csv
-import random
-import os
-
-# import csv
-import random
-import os
 
 def write_input_to_powergrid_csv_file(current_time, csv_file_path='./power_grid_datafiles/power_grid_input.csv'):
     # Predefined headers
-    required_headers = ["Time", "P", "Q", "V", "f", "angle", "status", "mode"]
+    required_headers = ["real_time_sent", "P", "Q", "V", "f", "angle", "real_time_recieved", "real_time_elapsed"]
 
     # Generate 5 real numbers rounded to 3 decimal places
     real_numbers = [round(random.random() * 100, 3) for _ in range(5)]
@@ -24,12 +17,14 @@ def write_input_to_powergrid_csv_file(current_time, csv_file_path='./power_grid_
 
     # Create the dictionary with the specified structure
     data = {
-        "Time": current_time,
+        "real_time_sent": current_time,
         "P": real_numbers[0],
         "Q": real_numbers[1],
         "V": real_numbers[2],
         "f": real_numbers[3],
         "angle": real_numbers[4],
+        "real_time_recieved": None,
+        "real_time_elapsed": None
         # "status": integers[0],
         # "mode": integers[1]
     }
@@ -135,19 +130,6 @@ def string_to_csv (data_string):
             csv_writer.writerows(data)
     
 
-def save_data_to_csv(output_csv_path, data_row):
-    """
-    Appends the data row (without metadata) to the output CSV file.
-    """
-    try:
-        # Open the output CSV in append mode to add new rows
-        with open(output_csv_path, mode='a', newline='') as file:
-            writer = csv.writer(file)
-            # Write only the data row to the output CSV
-            writer.writerow(data_row)
-        print(f"Data saved to {output_csv_path}")
-    except Exception as e:
-        print(f"Error writing to file: {e}")
         
 def append_json_to_csv(csv_file_path, json_string):
     """
@@ -168,6 +150,23 @@ def append_json_to_csv(csv_file_path, json_string):
             print("The JSON keys do not match the CSV headers.")
             return
 
+        # Convert the 'Time' field to a datetime object by assuming today's date
+
+        initial_time = datetime.strptime(data_dict['Time'], '%H:%M:%S').replace(
+            year=datetime.now().year, 
+            month=datetime.now().month, 
+            day=datetime.now().day
+        )
+
+        # Get the current time
+        current_time = datetime.now()
+
+        # Calculate the time difference in seconds
+        time_difference = (current_time - initial_time).total_seconds()
+
+        # Add the current time and time difference to the dictionary
+        data_dict['real_time_recieved'] = current_time.strftime('%H:%M:%S')  # Only keeping the time for consistency
+        data_dict['real_time_elapsed'] = time_difference
         # Append the data to the CSV file
         with open(csv_file_path, mode='a', newline='') as file:
             csv_writer = csv.DictWriter(file, fieldnames=headers)
@@ -209,7 +208,7 @@ def read_csv_nth_row(csv_file_path, n):
 
 
 if __name__ == "__main__":
-    # erase_powergrid_csv_data('./power_grid_datafiles/power_grid_output.csv')
+    erase_powergrid_csv_data('./power_grid_datafiles/power_grid_output.csv')
     # current_time = datetime.now().strftime("%H:%M:%S")
-    # write_input_to_powergrid_csv_file(current_time, './power_grid_datafiles/power_grid_output.csv')    
+    # write_input_to_powergrid_csv_file(0000, './power_grid_datafiles/power_grid_output.csv')    
     pass

@@ -77,11 +77,17 @@ class MessageManager:
         period (float): period (ms) to check the input csv file. The node owner will check for input in csv file at every period of time. 
     '''
 
-    def __init__(self, own: "QKDNode_GridQ", another: "QKDNode_GridQ", timeline: Timeline, key_manager1: "KeyManager", key_manager2: "KeyManager"):  # TODO: change own to owner
+    def __init__(self, owner: "QKDNode_GridQ", another: "QKDNode_GridQ", timeline: Timeline, key_manager1: "KeyManager", key_manager2: "KeyManager", internode_distance: "float", attenuation: "float", polarization_fidelity: 'float', eavesdropper_eff: 'float'):  # TODO: change own to owner
 
         # Nodes
-        self.own = own
+        self.own = owner
         self.another = another
+
+        # Node variables
+        self.internode_distance = internode_distance
+        self.attenuation = attenuation
+        self.polarization_fidelity = polarization_fidelity
+        self.eavesdropper_eff = eavesdropper_eff
 
         # Key Pool
         self.own_keys = np.empty(0)
@@ -98,7 +104,7 @@ class MessageManager:
         # Message Variables
         self.messages_recieved = []
         self.messages_sent = []
-        self.qkd_stack_size = len([element for element in own.protocol_stack if element])
+        self.qkd_stack_size = len([element for element in owner.protocol_stack if element])
 
         # Metrics
         self.time_to_generate_keys = None

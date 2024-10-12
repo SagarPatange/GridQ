@@ -90,8 +90,8 @@ def main():
         node2.set_backup_qchannel(qc1_backup) 
 
     # Initalizes message manager 1 and 2 initialization and pairing
-    message_manager_1 = MessageManager(node1, node2, tl, km1, km2)
-    message_manager_2 = MessageManager(node2, node1, tl, km2, km1)
+    message_manager_1 = MessageManager(node1, node2, tl, km1, km2, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff)
+    message_manager_2 = MessageManager(node2, node1, tl, km2, km1, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff)
     message_manager_1.pair_message_manager(message_manager_2)
 
     ################################# Start of simulation:
@@ -130,7 +130,7 @@ def main():
             for i in range(current_csv_row , new_csv_row ):
                 new_data = [read_csv_nth_row('./power_grid_datafiles/power_grid_input.csv', i)]
 
-                message_manager_1.send_message(node2.name, new_data, km1, km2, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff)
+                message_manager_1.send_message(node2.name, new_data)
             current_csv_row = new_csv_row
 
         

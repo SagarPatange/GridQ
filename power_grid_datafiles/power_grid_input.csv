@@ -1,2 +1,2 @@
-Time,P,Q,V,f,angle,status,mode
-16:37:24,55.946,50.439,49.662,48.338,92.431,12,42
+real_time_sent,P,Q,V,f,angle,real_time_recieved,real_time_elapsed
+22:20:52,49.19,60.213,70.377,50.229,7.474,,
