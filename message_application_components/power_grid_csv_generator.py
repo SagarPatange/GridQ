@@ -152,7 +152,7 @@ def append_json_to_csv(csv_file_path, json_string):
 
         # Convert the 'Time' field to a datetime object by assuming today's date
 
-        initial_time = datetime.strptime(data_dict['Time'], '%H:%M:%S').replace(
+        initial_time = datetime.strptime(data_dict['real_time_sent'], '%H:%M:%S').replace(
             year=datetime.now().year, 
             month=datetime.now().month, 
             day=datetime.now().day
