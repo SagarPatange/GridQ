@@ -130,24 +130,20 @@ class MessageManager:
         self.km2.keysize = key_size
         self.km1.num_keys = num_keys
         self.km2.num_keys = num_keys
-
+        
         self.own.set_protocol_layer(0, BB84_GridQ(self.own, self.own.name + ".BB84", self.own.name + ".lightsource", self.own.name + ".qsdetector"))
-        self.another.set_protocol_layer(0, BB84_GridQ(self.another, self, self.another.name + ".BB84", self.another.name + ".lightsource", self.another.name + ".qsdetector"))
+        self.another.set_protocol_layer(0, BB84_GridQ(self.another, self.another.name + ".BB84", self.another.name + ".lightsource", self.another.name + ".qsdetector"))
 
-        # Pairs BB84 and Cascade protocols if applicable. Cascade protocol isn't activated by default due to stack_size = 1
         pair_bb84_protocols(self.own.protocol_stack[0], self.another.protocol_stack[0]) 
         if self.qkd_stack_size > 1:
-            self.own.set_protocol_layer(1, Cascade(self.own, self.own.name + ".cascade"))
-            self.another.set_protocol_layer(1, Cascade(self.another, self.another.name + ".cascade"))
             pair_cascade_protocols(self.own.protocol_stack[1], self.another.protocol_stack[1])
+        
+        self.km1.lower_protocols[0] = self.own.protocol_stack[self.qkd_stack_size - 1]
+        self.own.protocol_stack[self.qkd_stack_size - 1].upper_protocols = [self.km1]
+        self.km2.lower_protocols[0] = self.another.protocol_stack[self.qkd_stack_size - 1]
+        self.another.protocol_stack[self.qkd_stack_size - 1].upper_protocols = [self.km2]
 
-        # instantiate our written keysize protocol
-        km1 = KeyManager(self.tl, keysize = 0, num_keys = 0)
-        km1.lower_protocols.append(self.own.protocol_stack[self.qkd_stack_size - 1])
-        self.own.protocol_stack[self.qkd_stack_size - 1].upper_protocols.append(km1)
-        km2 = KeyManager(self.tl, keysize = 0, num_keys = 0)
-        km2.lower_protocols.append(self.another.protocol_stack[self.qkd_stack_size - 1])
-        self.another.protocol_stack[self.qkd_stack_size - 1].upper_protocols.append(km2)
+
 
         self.km1.send_request()
         start_time = self.tl.now()
@@ -170,8 +166,8 @@ class MessageManager:
 
         own_protocol = CrypticMessageExchange(self.own, self.another)
         another_protocol = CrypticMessageExchange(self.another, self.own)
-        self.own.set_protocol_layer(1, own_protocol)
-        self.another.set_protocol_layer(1, another_protocol)
+        self.own.set_protocol_layer(0, own_protocol)
+        self.another.set_protocol_layer(0, another_protocol)
 
         ## send message
         for i in range(len(encoded_messages)):
@@ -206,6 +202,8 @@ class MessageManager:
         ## delete used keys
         self.own_keys = np.empty(0)
         self.another_keys = np.empty(0)
+        self.km1.keys = []
+        self.km2.keys = []
 
 
         return self.total_sim_time

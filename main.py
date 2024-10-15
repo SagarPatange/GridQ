@@ -48,7 +48,7 @@ def main():
     # Initalizing quantum nodes. Stack size = 1 means only BB84 will be implemented, Stack size = 2 means BB84 and Cascade will be implemented
     node1 = QKDNode_GridQ("n1", tl, stack_size=qkd_stack_size, component_templates=component_templates)    
     node1.set_seed(0)                           
-    node2 = QKDNode_GridQ("n2", tl, stack_size=qkd_stack_size)     
+    node2 = QKDNode_GridQ("n2", tl, stack_size=qkd_stack_size, component_templates=component_templates)     
     node2.set_seed(1)
 
     # Pairs BB84 and Cascade protocols if applicable. Cascade protocol isn't activated by default due to stack_size = 1
@@ -87,8 +87,8 @@ def main():
         node2.set_backup_qchannel(qc1_backup) 
 
     # Initalizes message manager 1 and 2 initialization and pairing
-    message_manager_1 = MessageManager(node1, node2, tl, km1, km2, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff)
-    message_manager_2 = MessageManager(node2, node1, tl, km2, km1, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff)
+    message_manager_1 = MessageManager(node1, node2, tl, km1, km2, qkd_stack_size, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff)
+    message_manager_2 = MessageManager(node2, node1, tl, km2, km1, qkd_stack_size, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff)
     message_manager_1.pair_message_manager(message_manager_2)
 
     ################################# Start of simulation:
@@ -104,7 +104,8 @@ def main():
     forever_loop_thread.daemon = True  # Daemon thread exits when the main program exits
     forever_loop_thread.start()
 
-    #####################################################
+    ##################################################### TODO: write a different program to get the input 
+
     # Run the interactive command input in the main 
     current_csv_row = 1
     new_csv_row = 1

@@ -126,7 +126,6 @@ def main():
         if new_csv_row > current_csv_row:
             for i in range(current_csv_row , new_csv_row ):
                 new_data = [read_csv_nth_row('./power_grid_datafiles/power_grid_input.csv', i)]
-
                 message_manager_1.send_message(node2.name, new_data)
             current_csv_row = new_csv_row
 
