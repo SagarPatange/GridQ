@@ -8,7 +8,7 @@ from sequence.qkd.BB84 import pair_bb84_protocols
 from sequence.qkd.cascade import pair_cascade_protocols
 from sequence.constants import MILLISECOND
 import threading, queue
-from message_application_components.csv_file_reader_thread import monitor_csv_file
+from message_application_components.csv_file_reader_thread import monitor_csv_file, user_input
 from message_application_components.power_grid_csv_generator import erase_powergrid_csv_data, read_csv_nth_row
 
 
@@ -19,13 +19,14 @@ def main():
     ################################# Parameter initalization of simulation:
 
     # General Simulation Variables
-    sim_time = 1000               # sim_time (float): estimated real time allowed for key generation simulation to run
+    sim_time = 1e6                # sim_time (float): estimated real time allowed for key generation simulation to run
     polarization_fidelity = 1     # polarization_fidelity (float): fidelity of quantum channel, probability of qubit being unaffected by noise. 
     attenuation = 2e-4            # standard value for attenuation (db/m) 
     internode_distance = 1e3      # internode_distance (float): distance between two nodes (km)
     qubit_frequency = 8e7         # qubit_frequency (float): maximum frequency of qubit transmission (in Hz) (default 8e7).
     eavesdropper_eff = 0.0        # eavesdropper_eff (float): added noise which is the probability of qubit being affected by noise of an eavesdropper. 
-    stack_size = 1                # stack_size (int: 1, 2, 3, 4, or 5): 1) only BB84 implemented in QKD, 2) BB84 and Cascade implemented in QKD
+    qkd_stack_size = 1            # stack_size (int: 1, 2, 3, 4, or 5): 1) only BB84 implemented in QKD, 2) BB84 and Cascade implemented in QKD
+    backup_qc = False
 
     # Lightsource Variables 
     frequency=1e6                 # frequency (float): frequency (in Hz) of photon creation (default 8e7).
@@ -33,7 +34,6 @@ def main():
     bandwidth=0                   # bandwidth (float): st. dev. in photon wavelength (default 0).
     mean_photon_num=0.1           # mean_photon_num (float): mean number of photons emitted each period (default 0.1).
     phase_error=0                 # phase_error (float): phase error applied to qubits (default 0).
-
     # 
     
     component_templates = {"LightSource": {"frequency": frequency, "wavelength": wavelength, "bandwidth": bandwidth, "mean_photon_num": mean_photon_num, "phase_error": phase_error}}
@@ -46,13 +46,12 @@ def main():
     tl = Timeline(sim_time * 1e9)   # Initializes timeline
 
     # Initalizing quantum nodes. Stack size = 1 means only BB84 will be implemented, Stack size = 2 means BB84 and Cascade will be implemented
-    node1 = QKDNode_GridQ("n1", tl, stack_size=1, component_templates=component_templates)    
+    node1 = QKDNode_GridQ("n1", tl, stack_size=qkd_stack_size, component_templates=component_templates)    
     node1.set_seed(0)                           
-    node2 = QKDNode_GridQ("n2", tl, stack_size=1)     
+    node2 = QKDNode_GridQ("n2", tl, stack_size=qkd_stack_size)     
     node2.set_seed(1)
 
     # Pairs BB84 and Cascade protocols if applicable. Cascade protocol isn't activated by default due to stack_size = 1
-    qkd_stack_size = 1
     pair_bb84_protocols(node1.protocol_stack[0], node2.protocol_stack[0]) 
     if qkd_stack_size > 1:
         pair_cascade_protocols(node1.protocol_stack[1], node2.protocol_stack[1])
@@ -70,19 +69,17 @@ def main():
     qc1.set_ends(node2, node1.name)
 
     # instantiate our written keysize protocol
-    stack_size = 1    
     km1 = KeyManager(tl, keysize = 0, num_keys = 0)
-    km1.lower_protocols.append(node1.protocol_stack[stack_size - 1])
-    node1.protocol_stack[stack_size - 1].upper_protocols.append(km1)
+    km1.lower_protocols.append(node1.protocol_stack[qkd_stack_size - 1])
+    node1.protocol_stack[qkd_stack_size - 1].upper_protocols.append(km1)
     km2 = KeyManager(tl, keysize = 0, num_keys = 0)
-    km2.lower_protocols.append(node2.protocol_stack[stack_size - 1])
-    node2.protocol_stack[stack_size - 1].upper_protocols.append(km2)
+    km2.lower_protocols.append(node2.protocol_stack[qkd_stack_size - 1])
+    node2.protocol_stack[qkd_stack_size - 1].upper_protocols.append(km2)
     
     # start simulation and record timing
     tl.init()
 
     # Initalizes back up quantum channel. Set to `False` by default
-    backup_qc = False
     if backup_qc:
         qc0_backup = QuantumChannelEve("qc_n1_n2_backup", tl, attenuation=attenuation, distance=internode_distance, polarization_fidelity=1, frequency= qubit_frequency, eavesdropper_efficiency = 0.0)
         qc1_backup = QuantumChannelEve("qc_n2_n1_backup", tl, attenuation=attenuation, distance=internode_distance, polarization_fidelity=1, frequency= qubit_frequency, eavesdropper_efficiency = 0.0)
@@ -90,8 +87,8 @@ def main():
         node2.set_backup_qchannel(qc1_backup) 
 
     # Initalizes message manager 1 and 2 initialization and pairing
-    message_manager_1 = MessageManager(node1, node2, tl, km1, km2)
-    message_manager_2 = MessageManager(node2, node1, tl, km2, km1)
+    message_manager_1 = MessageManager(node1, node2, tl, km1, km2, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff)
+    message_manager_2 = MessageManager(node2, node1, tl, km2, km1, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff)
     message_manager_1.pair_message_manager(message_manager_2)
 
     ################################# Start of simulation:
@@ -125,7 +122,7 @@ def main():
             for i in range(current_csv_row , new_csv_row ):
                 new_data = [read_csv_nth_row('./power_grid_datafiles/power_grid_input.csv', i)]
 
-                message_manager_1.send_message(node2.name, new_data, km1, km2, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff)
+                message_manager_1.send_message(node2.name, new_data)
             current_csv_row = new_csv_row
 
         

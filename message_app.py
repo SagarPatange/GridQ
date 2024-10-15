@@ -1,8 +1,11 @@
 ## imports from sequence package
 from sequence.kernel.timeline import Timeline
 from sequence.message import Message
+from sequence.qkd.BB84 import pair_bb84_protocols
+from sequence.qkd.cascade import pair_cascade_protocols
 from enum import Enum, auto
 from sequence.message import Message
+from sequence.qkd.cascade import Cascade
 
 ## package imports
 import numpy as np
@@ -12,7 +15,8 @@ import onetimepad
 from eavesdropper_implemented.node_GridQ import QKDNode_GridQ
 from message_application_components.performance_metrics.message_accuracy import compare_strings_with_color
 from message_application_components.power_grid_csv_generator import append_json_to_csv
-from message_application_components.qkd_generation import KeyManager, customize_keys 
+from message_application_components.qkd_generation import KeyManager, customize_keys
+from eavesdropper_implemented.BB84_eve import BB84_GridQ
 
 ## Defines the message type
 class MessageType(Enum):
@@ -77,7 +81,7 @@ class MessageManager:
         period (float): period (ms) to check the input csv file. The node owner will check for input in csv file at every period of time. 
     '''
 
-    def __init__(self, owner: "QKDNode_GridQ", another: "QKDNode_GridQ", timeline: Timeline, key_manager1: "KeyManager", key_manager2: "KeyManager", internode_distance: "float", attenuation: "float", polarization_fidelity: 'float', eavesdropper_eff: 'float'):  # TODO: change own to owner
+    def __init__(self, owner: "QKDNode_GridQ", another: "QKDNode_GridQ", timeline: Timeline, key_manager1: "KeyManager", key_manager2: "KeyManager", qkd_stack_size: "int", internode_distance: "float", attenuation: "float", polarization_fidelity: 'float', eavesdropper_eff: 'float'):  # TODO: change own to owner
 
         # Nodes
         self.own = owner
@@ -89,17 +93,19 @@ class MessageManager:
         self.polarization_fidelity = polarization_fidelity
         self.eavesdropper_eff = eavesdropper_eff
 
-        # Key Pool
+        # Key Variables
         self.own_keys = np.empty(0)
         self.another_keys = np.empty(0)
+        self.km1 = key_manager1
+        self.km2 = key_manager2
+        self.qkd_stack_size = qkd_stack_size
 
         # Other Node's MessageManager
         self.another_message_manager = None
 
         # Components
         self.tl = timeline
-        self.km1 = key_manager1
-        self.km2 = key_manager2
+
 
         # Message Variables
         self.messages_recieved = []
@@ -125,10 +131,29 @@ class MessageManager:
         self.km1.num_keys = num_keys
         self.km2.num_keys = num_keys
 
-        self.km1.send_request()
-        self.tl.run()
+        self.own.set_protocol_layer(0, BB84_GridQ(self.own, self.own.name + ".BB84", self.own.name + ".lightsource", self.own.name + ".qsdetector"))
+        self.another.set_protocol_layer(0, BB84_GridQ(self.another, self, self.another.name + ".BB84", self.another.name + ".lightsource", self.another.name + ".qsdetector"))
 
-        self.time_to_generate_keys = self.tl.now()
+        # Pairs BB84 and Cascade protocols if applicable. Cascade protocol isn't activated by default due to stack_size = 1
+        pair_bb84_protocols(self.own.protocol_stack[0], self.another.protocol_stack[0]) 
+        if self.qkd_stack_size > 1:
+            self.own.set_protocol_layer(1, Cascade(self.own, self.own.name + ".cascade"))
+            self.another.set_protocol_layer(1, Cascade(self.another, self.another.name + ".cascade"))
+            pair_cascade_protocols(self.own.protocol_stack[1], self.another.protocol_stack[1])
+
+        # instantiate our written keysize protocol
+        km1 = KeyManager(self.tl, keysize = 0, num_keys = 0)
+        km1.lower_protocols.append(self.own.protocol_stack[self.qkd_stack_size - 1])
+        self.own.protocol_stack[self.qkd_stack_size - 1].upper_protocols.append(km1)
+        km2 = KeyManager(self.tl, keysize = 0, num_keys = 0)
+        km2.lower_protocols.append(self.another.protocol_stack[self.qkd_stack_size - 1])
+        self.another.protocol_stack[self.qkd_stack_size - 1].upper_protocols.append(km2)
+
+        self.km1.send_request()
+        start_time = self.tl.now()
+        self.tl.run()
+        end_time = self.tl.now()
+        self.time_to_generate_keys = end_time - start_time
         self.own_keys = np.append(self.own_keys,self.km1.keys)
         self.another_keys = np.append(self.another_keys,self.km2.keys)
 
@@ -138,18 +163,15 @@ class MessageManager:
             encoded_messages.append(onetimepad.encrypt(messages[i], str(self.own_keys[i]))) ## onetimepad encryption
 
         ## setting up messaging protocol
-        self.own.protocol_stack.clear()
-        self.own.protocols.clear()
-        self.another.protocol_stack.clear()
-        self.another.protocols.clear()
+
+        if self.qkd_stack_size > 1:
+            self.own.set_protocol_layer(1, None)
+            self.another.set_protocol_layer(1, None)
 
         own_protocol = CrypticMessageExchange(self.own, self.another)
         another_protocol = CrypticMessageExchange(self.another, self.own)
-
-        self.own.protocol_stack.append(own_protocol)
-        self.own.protocols.append(own_protocol)
-        self.another.protocol_stack.append(another_protocol)
-        self.another.protocols.append(another_protocol)
+        self.own.set_protocol_layer(1, own_protocol)
+        self.another.set_protocol_layer(1, another_protocol)
 
         ## send message
         for i in range(len(encoded_messages)):
@@ -180,8 +202,10 @@ class MessageManager:
 
         ## Metrics update
         self.total_sim_time = self.tl.now()
+
         ## delete used keys
-        del self.own_keys
-        del self.another_keys
+        self.own_keys = np.empty(0)
+        self.another_keys = np.empty(0)
+
 
         return self.total_sim_time
