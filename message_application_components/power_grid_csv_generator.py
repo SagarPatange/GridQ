@@ -7,7 +7,7 @@ from datetime import datetime
 
 def write_input_to_powergrid_csv_file(current_time, csv_file_path='./power_grid_datafiles/power_grid_input.csv'):
     # Predefined headers
-    required_headers = ["real_time_sent", "P", "Q", "V", "f", "angle", "real_time_recieved", "real_time_elapsed"]
+    required_headers = ["real_time_sent", "P", "Q", "V", "f", "angle", "real_time_recieved", "real_time_elapsed", "estimated_end-to-end_real_time"]
 
     # Generate 5 real numbers rounded to 3 decimal places
     real_numbers = [round(random.random() * 100, 3) for _ in range(5)]
@@ -24,7 +24,8 @@ def write_input_to_powergrid_csv_file(current_time, csv_file_path='./power_grid_
         "f": real_numbers[3],
         "angle": real_numbers[4],
         "real_time_recieved": None,
-        "real_time_elapsed": None
+        "real_time_elapsed": None,
+        "estimated_end-to-end_real_time": None
         # "status": integers[0],
         # "mode": integers[1]
     }
@@ -131,7 +132,7 @@ def string_to_csv (data_string):
     
 
         
-def append_json_to_csv(csv_file_path, json_string):
+def append_json_to_csv(csv_file_path, json_string, end_to_end_sim_time):
     """
     Converts a JSON string to a row in an existing CSV file.
     The JSON string contains the metadata (headings) and the data.
@@ -167,6 +168,7 @@ def append_json_to_csv(csv_file_path, json_string):
         # Add the current time and time difference to the dictionary
         data_dict['real_time_recieved'] = current_time.strftime('%H:%M:%S')  # Only keeping the time for consistency
         data_dict['real_time_elapsed'] = time_difference
+        data_dict['estimated_end-to-end_real_time'] = end_to_end_sim_time
         # Append the data to the CSV file
         with open(csv_file_path, mode='a', newline='') as file:
             csv_writer = csv.DictWriter(file, fieldnames=headers)
@@ -208,7 +210,7 @@ def read_csv_nth_row(csv_file_path, n):
 
 
 if __name__ == "__main__":
-    erase_powergrid_csv_data('./power_grid_datafiles/power_grid_output.csv')
+    # erase_powergrid_csv_data('./power_grid_datafiles/power_grid_output.csv')
     # current_time = datetime.now().strftime("%H:%M:%S")
     # write_input_to_powergrid_csv_file(0000, './power_grid_datafiles/power_grid_output.csv')    
     pass

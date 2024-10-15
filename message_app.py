@@ -112,9 +112,6 @@ class MessageManager:
         self.messages_sent = []
         self.qkd_stack_size = len([element for element in owner.protocol_stack if element])
 
-        # Metrics
-        self.time_to_generate_keys = None
-        self.total_sim_time = 0
 
     def pair_message_manager(self, node):
         self.another_message_manager = node    
@@ -143,13 +140,9 @@ class MessageManager:
         self.km2.lower_protocols[0] = self.another.protocol_stack[self.qkd_stack_size - 1]
         self.another.protocol_stack[self.qkd_stack_size - 1].upper_protocols = [self.km2]
 
-
-
         self.km1.send_request()
         start_time = self.tl.now()
         self.tl.run()
-        end_time = self.tl.now()
-        self.time_to_generate_keys = end_time - start_time
         self.own_keys = np.append(self.own_keys,self.km1.keys)
         self.another_keys = np.append(self.another_keys,self.km2.keys)
 
@@ -190,20 +183,17 @@ class MessageManager:
         else:
             self.another_message_manager.messages_recieved = decrypted_messages_recieved
 
+        ## Metrics update
+        end_time = self.tl.now()
+        total_sim_time = end_time - start_time
         ## Message Update
         for i in range(len(messages)):
             compare_strings_with_color(messages[i], decrypted_messages_recieved[i])
             output_csv_path = './power_grid_datafiles/power_grid_output.csv'
-            append_json_to_csv(output_csv_path, decrypted_messages_recieved[i])
-
-        ## Metrics update
-        self.total_sim_time = self.tl.now()
+            append_json_to_csv(output_csv_path, decrypted_messages_recieved[i], total_sim_time)
 
         ## delete used keys
         self.own_keys = np.empty(0)
         self.another_keys = np.empty(0)
         self.km1.keys = []
         self.km2.keys = []
-
-
-        return self.total_sim_time
