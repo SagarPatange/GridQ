@@ -7,7 +7,7 @@ from eavesdropper_implemented.quantum_channel_eve import QuantumChannelEve
 from sequence.qkd.BB84 import pair_bb84_protocols
 from sequence.qkd.cascade import pair_cascade_protocols
 from sequence.constants import MILLISECOND
-import threading, queue
+import threading, queue, json
 from message_application_components.csv_file_reader_thread import monitor_csv_file, user_input
 from message_application_components.power_grid_csv_generator import erase_powergrid_csv_data, read_csv_nth_row
 
@@ -20,7 +20,7 @@ def main():
 
     # General Simulation Variables
     sim_time = 1e6                # sim_time (float): estimated real time allowed for key generation simulation to run
-    polarization_fidelity = 1     # polarization_fidelity (float): fidelity of quantum channel, probability of qubit being unaffected by noise. 
+    polarization_fidelity = 0.97     # polarization_fidelity (float): fidelity of quantum channel, probability of qubit being unaffected by noise. 
     attenuation = 2e-4            # standard value for attenuation (db/m) 
     internode_distance = 1e3      # internode_distance (float): distance between two nodes (km)
     qubit_frequency = 8e7         # qubit_frequency (float): maximum frequency of qubit transmission (in Hz) (default 8e7).
@@ -105,7 +105,7 @@ def main():
     forever_loop_thread.start()
 
     ##################################################### TODO: write a different program to get the input 
-
+    
     # Run the interactive command input in the main 
     current_csv_row = 1
     new_csv_row = 1
@@ -121,9 +121,9 @@ def main():
 
         if new_csv_row > current_csv_row:
             for i in range(current_csv_row , new_csv_row ):
-                new_data = [read_csv_nth_row('./power_grid_datafiles/power_grid_input.csv', i)]
-
-                message_manager_1.send_message(node2.name, new_data)
+                row_data = read_csv_nth_row('./power_grid_datafiles/power_grid_input.csv', i)
+                parsed_data = list(json.loads(row_data).values())
+                message_manager_1.send_message(node2.name, parsed_data)
             current_csv_row = new_csv_row
 
         

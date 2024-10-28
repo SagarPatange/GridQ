@@ -1,45 +1,16 @@
-import csv
 import json
 
-def append_json_to_csv(json_string, csv_file_path):
-    """
-    Converts a JSON string to a row in an existing CSV file.
-    The JSON string contains the metadata (headings) and the data.
-    """
-    try:
-        # Parse the JSON string into a dictionary
-        data_dict = json.loads(json_string)
+# List of values
+values = ['23:12:02', '78.341', '37.447', '12.191', '30.998', '14.05', '', '', '']
 
-        # Read the existing CSV file to check for headers
-        with open(csv_file_path, mode='r', newline='') as file:
-            csv_reader = csv.reader(file)
-            headers = next(csv_reader)  # Extract existing CSV headers
+# Dictionary with metadata keys
+keys = ["real_time_sent", "P", "Q", "V", "f", "angle", "real_time_recieved", "real_time_elapsed", "estimated_end-to-end_real_time"]
 
-        # Ensure the keys in the JSON match the headers in the CSV
-        if set(data_dict.keys()) != set(headers):
-            print("The JSON keys do not match the CSV headers.")
-            return
+# Combine keys and values into a dictionary
+data_dict = dict(zip(keys, values))
 
-        # Append the data to the CSV file
-        with open(csv_file_path, mode='a', newline='') as file:
-            csv_writer = csv.DictWriter(file, fieldnames=headers)
-            # Write the data from the JSON string
-            csv_writer.writerow(data_dict)
-        print("Data successfully added to the CSV file.")
+# Convert dictionary back to JSON string
+data_string = json.dumps(data_dict)
 
-    except FileNotFoundError:
-        print(f"File not found: {csv_file_path}")
-    except Exception as e:
-        print(f"An error occurred: {e}")
-
-# Example usage
-json_string = """
-{
-    "Name": "Charlie",
-    "Age": "35",
-    "City": "Los Angeles"
-}
-"""
-csv_file_path = 'example.csv'
-
-append_json_to_csv(json_string, csv_file_path)
+# Display the string
+data_string

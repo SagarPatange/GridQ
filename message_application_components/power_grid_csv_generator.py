@@ -207,7 +207,12 @@ def read_csv_nth_row(csv_file_path, n):
         print(f"File not found: {csv_file_path}")
         return None
 
+def data_to_metastring (values):
 
+    keys = ["real_time_sent", "P", "Q", "V", "f", "angle", "real_time_recieved", "real_time_elapsed", "estimated_end-to-end_real_time"]
+    data_dict = dict(zip(keys, values))
+    data_string = json.dumps(data_dict)
+    return data_string
 
 if __name__ == "__main__":
     # erase_powergrid_csv_data('./power_grid_datafiles/power_grid_output.csv')

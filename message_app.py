@@ -6,6 +6,7 @@ from sequence.qkd.cascade import pair_cascade_protocols
 from enum import Enum, auto
 from sequence.message import Message
 from sequence.qkd.cascade import Cascade
+import json
 
 ## package imports
 import numpy as np
@@ -14,7 +15,7 @@ import onetimepad
 ## local repo imports 
 from eavesdropper_implemented.node_GridQ import QKDNode_GridQ
 from message_application_components.performance_metrics.message_accuracy import compare_strings_with_color
-from message_application_components.power_grid_csv_generator import append_json_to_csv
+from message_application_components.power_grid_csv_generator import append_json_to_csv, data_to_metastring
 from message_application_components.qkd_generation import KeyManager, customize_keys
 from eavesdropper_implemented.BB84_eve import BB84_GridQ
 
@@ -120,7 +121,6 @@ class MessageManager:
     def send_message(self, dst: str, messages: list[str]):
 
         ## Generating right appropriate amount of keys
-
         key_size = customize_keys(messages)
         num_keys = len(messages)
         self.km1.keysize = key_size
@@ -185,12 +185,13 @@ class MessageManager:
 
         ## Metrics update
         end_time = self.tl.now()
-        total_sim_time = end_time - start_time
+        total_sim_time_ms = (end_time - start_time) / 1e9
         ## Message Update
-        for i in range(len(messages)):
+        for i in range(sum(1 for value in messages if value)):
             compare_strings_with_color(messages[i], decrypted_messages_recieved[i])
-            output_csv_path = './power_grid_datafiles/power_grid_output.csv'
-            append_json_to_csv(output_csv_path, decrypted_messages_recieved[i], total_sim_time)
+        decrypted_messages_metastring = data_to_metastring(decrypted_messages_recieved)
+        output_csv_path = './power_grid_datafiles/power_grid_output.csv'
+        append_json_to_csv(output_csv_path, decrypted_messages_metastring, total_sim_time_ms)
 
         ## delete used keys
         self.own_keys = np.empty(0)
