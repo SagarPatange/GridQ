@@ -10,4 +10,4 @@ COPY . /GRIDQ
 
 RUN pip install --no-cache-dir -r docker_requirements.txt
 
-CMD ["python", "./message_app.py"]
+CMD ["python", "./main.py"]
