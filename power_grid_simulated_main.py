@@ -119,7 +119,7 @@ def main():
         try:
             while not q.empty():
                 new_csv_row = q.get_nowait()  # Non-blocking get
-                print("\nNew data from CSV:", new_csv_row)
+                print(f"\nNew data added to row {new_csv_row - 1} of power_grid_output.csv")
         except queue.Empty:
             pass
 

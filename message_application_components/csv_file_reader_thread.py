@@ -5,7 +5,7 @@ from message_application_components.power_grid_csv_generator import write_input_
 
 # Function to monitor the CSV file for new data and add it to the queue
 def monitor_csv_file(file_path, interval, q):
-    last_line_count = 0
+    last_line_count = 1
 
     while True:
         time.sleep(interval)  # Wait for the interval time
@@ -16,7 +16,6 @@ def monitor_csv_file(file_path, interval, q):
 
                 # If new rows have been added, put them in the queue
                 if current_line_count > last_line_count:
-                    new_rows = csv_reader[last_line_count:]  # Get only new rows
                     last_line_count = current_line_count  # Update the last known line count
                     q.put(last_line_count)  # Add each new row to the queue
 
