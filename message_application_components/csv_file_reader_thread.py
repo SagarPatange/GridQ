@@ -39,8 +39,8 @@ def user_input():
             print("Exiting the program.")
             os._exit(0)
         if user_command.lower() == 'generate data':
-            current_time = datetime.now().strftime("%H:%M:%S")
-            write_input_to_powergrid_csv_file(current_time)
+            # current_time = datetime.now().strftime("%H:%M:%S")
+            write_input_to_powergrid_csv_file()
 
         # Start a new thread to execute the user command without blocking the loop
         command_thread = threading.Thread(target=run_shell_command, args=(user_command,))

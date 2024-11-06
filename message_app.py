@@ -6,7 +6,8 @@ from sequence.qkd.cascade import pair_cascade_protocols
 from enum import Enum, auto
 from sequence.message import Message
 from sequence.qkd.cascade import Cascade
-import json
+import time
+
 
 ## package imports
 import numpy as np
@@ -120,6 +121,8 @@ class MessageManager:
     ## Method to send messages
     def send_message(self, dst: str, messages: list[str]):
 
+        machine_start_time = time.time()     
+
         ## Generating right appropriate amount of keys
         key_size = customize_keys(messages)
         num_keys = len(messages)
@@ -186,9 +189,10 @@ class MessageManager:
         ## Metrics update
         end_time = self.tl.now()
         total_sim_time_ms = (end_time - start_time) / 1e9
+
         ## Message Update
-        for i in range(sum(1 for value in messages if value)):
-            compare_strings_with_color(messages[i], decrypted_messages_recieved[i])
+        # for i in range(sum(1 for value in messages if value)):
+        #     compare_strings_with_color(messages[i], decrypted_messages_recieved[i])
         decrypted_messages_metastring = data_to_metastring(decrypted_messages_recieved)
         output_csv_path = './power_grid_datafiles/power_grid_output.csv'
         append_json_to_csv(output_csv_path, decrypted_messages_metastring, total_sim_time_ms)
@@ -198,3 +202,6 @@ class MessageManager:
         self.another_keys = np.empty(0)
         self.km1.keys = []
         self.km2.keys = []
+
+        machine_end_time = time.time()
+        print(f"Machine runtime: {round((machine_end_time - machine_start_time)*1e3, 3)} ms")

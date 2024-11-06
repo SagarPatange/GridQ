@@ -343,7 +343,7 @@ class BB84_GridQ(BB84):
                         key_error = num_errors / self.key_lengths[0]
                         self.error_rates.append(num_errors / self.key_lengths[0])
                         polarization_fidelity = self.owner.qchannels[next(iter(self.owner.qchannels))].polarization_fidelity  
-                        print(f'Key error: {key_error}')
+                        # print(f'Key error: {key_error}')
 
                         if self.owner.backup_qchannel is not None or self.another.owner.backup_qchannel is not None:                      
                             if key_error > (1 - polarization_fidelity):

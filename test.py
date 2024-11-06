@@ -1,16 +1,25 @@
-import json
+def csv_to_string (csv_file_path):  
 
-# List of values
-values = ['23:12:02', '78.341', '37.447', '12.191', '30.998', '14.05', '', '', '']
+    '''
+    Method converts CSV to JSON, then converts JSON to string
 
-# Dictionary with metadata keys
-keys = ["real_time_sent", "P", "Q", "V", "f", "angle", "real_time_recieved", "real_time_elapsed", "estimated_end-to-end_real_time"]
+    returns: a string of data in csv file 
+    '''
 
-# Combine keys and values into a dictionary
-data_dict = dict(zip(keys, values))
+    json_file_path = './power_grid_datafiles/power_grid_input.json'
+    with open(csv_file_path, mode='r', newline='') as csv_file:
+        csv_reader = csv.DictReader(csv_file) # Create a CSV reader object using DictReader, which directly reads each row to a dictionary
+        data = list(csv_reader) # Convert csv_reader to a list of dictionaries (one dictionary per row)
 
-# Convert dictionary back to JSON string
-data_string = json.dumps(data_dict)
+    # Open the JSON file for writing
+    with open(json_file_path, mode='w') as json_file:
+        json.dump(data, json_file, indent=4)
+    
+    # print(f"CSV data has been successfully converted to JSON and saved in '{json_file_path}'")
+    with open(json_file_path, 'r') as f:
+        json_data = json.load(f)
+    json_string = [json.dumps(json_data)]
 
-# Display the string
-data_string
+    return json_string
+    
+    

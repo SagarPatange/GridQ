@@ -20,7 +20,7 @@ def main():
 
     # General Simulation Variables
     sim_time = 1e6                # sim_time (float): estimated real time allowed for key generation simulation to run
-    polarization_fidelity = 0.97     # polarization_fidelity (float): fidelity of quantum channel, probability of qubit being unaffected by noise. 
+    polarization_fidelity = 1     # polarization_fidelity (float): fidelity of quantum channel, probability of qubit being unaffected by noise. 
     attenuation = 2e-4            # standard value for attenuation (db/m) 
     internode_distance = 1e3      # internode_distance (float): distance between two nodes (km)
     qubit_frequency = 8e7         # qubit_frequency (float): maximum frequency of qubit transmission (in Hz) (default 8e7).

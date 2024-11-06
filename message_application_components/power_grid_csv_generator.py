@@ -5,9 +5,9 @@ import json
 from datetime import datetime
 
 
-def write_input_to_powergrid_csv_file(current_time, csv_file_path='./power_grid_datafiles/power_grid_input.csv'):
+def write_input_to_powergrid_csv_file(csv_file_path='./power_grid_datafiles/power_grid_input.csv'):
     # Predefined headers
-    required_headers = ["real_time_sent", "P", "Q", "V", "f", "angle", "real_time_recieved", "real_time_elapsed", "estimated_end-to-end_real_time"]
+    required_headers = ["P", "Q", "V", "f", "angle", "simulation_time"]
 
     # Generate 5 real numbers rounded to 3 decimal places
     real_numbers = [round(random.random() * 100, 3) for _ in range(5)]
@@ -17,15 +17,12 @@ def write_input_to_powergrid_csv_file(current_time, csv_file_path='./power_grid_
 
     # Create the dictionary with the specified structure
     data = {
-        "real_time_sent": current_time,
         "P": real_numbers[0],
         "Q": real_numbers[1],
         "V": real_numbers[2],
         "f": real_numbers[3],
         "angle": real_numbers[4],
-        "real_time_recieved": None,
-        "real_time_elapsed": None,
-        "estimated_end-to-end_real_time": None
+        "simulation_time": None
         # "status": integers[0],
         # "mode": integers[1]
     }
@@ -70,67 +67,6 @@ def erase_powergrid_csv_data(csv_file_path = './power_grid_datafiles/power_grid_
         writer.writerow(headers)  # Write the headers back to the file
 
     print(f"Data deleted in '{csv_file_path}'.")
-
-def csv_to_string (csv_file_path):  
-
-    '''
-    Method converts CSV to JSON, then converts JSON to string
-
-    returns: a string of data in csv file 
-    '''
-
-    json_file_path = './power_grid_datafiles/power_grid_input.json'
-    with open(csv_file_path, mode='r', newline='') as csv_file:
-        csv_reader = csv.DictReader(csv_file) # Create a CSV reader object using DictReader, which directly reads each row to a dictionary
-        data = list(csv_reader) # Convert csv_reader to a list of dictionaries (one dictionary per row)
-
-    # Open the JSON file for writing
-    with open(json_file_path, mode='w') as json_file:
-        json.dump(data, json_file, indent=4)
-    
-    # print(f"CSV data has been successfully converted to JSON and saved in '{json_file_path}'")
-    with open(json_file_path, 'r') as f:
-        json_data = json.load(f)
-    json_string = [json.dumps(json_data)]
-
-    return json_string
-        
-def string_to_csv (data_string):  
-
-    '''
-    Method converts string to JSON, then converts JSON to CSV
-
-    '''
-
-    data = json.loads(data_string)
-
-    # Define the path to the output JSON file
-    json_file_path = './power_grid_datafiles/power_grid_output.json'
-    csv_file_path = './power_grid_datafiles/power_grid_output.csv'
-    # Write the Python object to a JSON file
-    with open(json_file_path, 'w') as json_file:
-        # Write the data to the file; indent=4 for pretty-printing
-        json.dump(data, json_file, indent=4)
-
-    with open(json_file_path, 'r') as json_file:
-        # Load the entire JSON content into a Python list (assuming it's an array of objects)
-        data = json.load(json_file)
-
-    # Open the CSV file for writing
-    with open(csv_file_path, mode='w', newline='') as csv_file:
-        # Assuming that all dictionaries in 'data' have the same keys
-        if data:
-            # Extract headers (keys) from the first item (this assumes that all dicts have the same keys)
-            headers = data[0].keys()
-
-            # Create a CSV writer object and write the header row
-            csv_writer = csv.DictWriter(csv_file, fieldnames=headers)
-            csv_writer.writeheader()
-
-            # Write the data rows
-            csv_writer.writerows(data)
-    
-
         
 def append_json_to_csv(csv_file_path, json_string, end_to_end_sim_time):
     """
@@ -150,25 +86,9 @@ def append_json_to_csv(csv_file_path, json_string, end_to_end_sim_time):
         if set(data_dict.keys()) != set(headers):
             print("The JSON keys do not match the CSV headers.")
             return
-
-        # Convert the 'Time' field to a datetime object by assuming today's date
-
-        initial_time = datetime.strptime(data_dict['real_time_sent'], '%H:%M:%S').replace(
-            year=datetime.now().year, 
-            month=datetime.now().month, 
-            day=datetime.now().day
-        )
-
-        # Get the current time
-        current_time = datetime.now()
-
-        # Calculate the time difference in seconds
-        time_difference = (current_time - initial_time).total_seconds()
-
+        
         # Add the current time and time difference to the dictionary
-        data_dict['real_time_recieved'] = current_time.strftime('%H:%M:%S')  # Only keeping the time for consistency
-        data_dict['real_time_elapsed'] = time_difference
-        data_dict['estimated_end-to-end_real_time'] = end_to_end_sim_time
+        data_dict['simulation_time'] = end_to_end_sim_time
         # Append the data to the CSV file
         with open(csv_file_path, mode='a', newline='') as file:
             csv_writer = csv.DictWriter(file, fieldnames=headers)
@@ -180,8 +100,6 @@ def append_json_to_csv(csv_file_path, json_string, end_to_end_sim_time):
         print(f"File not found: {csv_file_path}")
     except Exception as e:
         print(f"An error occurred: {e}")
-
-
 
 def read_csv_nth_row(csv_file_path, n):
     """
@@ -209,13 +127,13 @@ def read_csv_nth_row(csv_file_path, n):
 
 def data_to_metastring (values):
 
-    keys = ["real_time_sent", "P", "Q", "V", "f", "angle", "real_time_recieved", "real_time_elapsed", "estimated_end-to-end_real_time"]
+    keys = ["P", "Q", "V", "f", "angle", "simulation_time"]
     data_dict = dict(zip(keys, values))
     data_string = json.dumps(data_dict)
     return data_string
 
 if __name__ == "__main__":
-    # erase_powergrid_csv_data('./power_grid_datafiles/power_grid_output.csv')
+    erase_powergrid_csv_data('./power_grid_datafiles/power_grid_output.csv')
     # current_time = datetime.now().strftime("%H:%M:%S")
-    # write_input_to_powergrid_csv_file(0000, './power_grid_datafiles/power_grid_output.csv')    
+    write_input_to_powergrid_csv_file('./power_grid_datafiles/power_grid_output.csv')    
     pass
