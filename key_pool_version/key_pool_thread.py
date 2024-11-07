@@ -3,13 +3,11 @@ from sequence.qkd.cascade import pair_cascade_protocols
 import numpy as np
 from eavesdropper_implemented.BB84_eve import BB84_GridQ
 from sequence.kernel.timeline import Timeline
-from sequence.message import Message
 from sequence.qkd.BB84 import pair_bb84_protocols
 from sequence.qkd.cascade import pair_cascade_protocols
-from enum import Enum, auto
-from sequence.message import Message
-from sequence.qkd.cascade import Cascade
 import time
+from message_application_components.qkd_generation import KeyManager
+
 ## local repo imports 
 from eavesdropper_implemented.node_GridQ import QKDNode_GridQ
 from eavesdropper_implemented.BB84_eve import BB84_GridQ

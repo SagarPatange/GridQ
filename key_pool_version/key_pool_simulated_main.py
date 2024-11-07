@@ -10,7 +10,7 @@ from sequence.constants import MILLISECOND
 import threading, queue, json
 from message_application_components.csv_file_reader_thread import monitor_csv_file, user_input
 from message_application_components.power_grid_csv_generator import erase_powergrid_csv_data, read_csv_nth_row
-
+from key_pool_version.key_pool_thread import key_pool_generator
 
 def main():
     '''
@@ -110,6 +110,12 @@ def main():
     user_input_thread = threading.Thread(target=user_input)
     user_input_thread.daemon = True  # Daemon thread
     user_input_thread.start()
+
+    ##################################################### 
+    # Continually check for user input in the shell
+    forever_loop_thread = threading.Thread(target=key_pool_generator, args=(, q2))
+    forever_loop_thread.daemon = True  # Daemon thread exits when the main program exits
+    forever_loop_thread.start()
 
     #####################################################
     # Run the interactive command input in the main 

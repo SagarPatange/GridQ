@@ -118,6 +118,31 @@ class MessageManager:
     def pair_message_manager(self, node):
         self.another_message_manager = node    
  
+    def generate_keys(self):
+
+        self.km1.keysize = 20
+        self.km2.keysize = 20
+        self.km1.num_keys = 10
+        self.km2.num_keys = 10
+        
+        self.own.set_protocol_layer(0, BB84_GridQ(self.own, self.own.name + ".BB84", self.own.name + ".lightsource", self.own.name + ".qsdetector"))
+        self.another.set_protocol_layer(0, BB84_GridQ(self.another, self.another.name + ".BB84", self.another.name + ".lightsource", self.another.name + ".qsdetector"))
+
+        pair_bb84_protocols(self.own.protocol_stack[0], self.another.protocol_stack[0]) 
+        if self.qkd_stack_size > 1:
+            pair_cascade_protocols(self.own.protocol_stack[1], self.another.protocol_stack[1])
+        
+        self.km1.lower_protocols[0] = self.own.protocol_stack[self.qkd_stack_size - 1]
+        self.own.protocol_stack[self.qkd_stack_size - 1].upper_protocols = [self.km1]
+        self.km2.lower_protocols[0] = self.another.protocol_stack[self.qkd_stack_size - 1]
+        self.another.protocol_stack[self.qkd_stack_size - 1].upper_protocols = [self.km2]
+
+        self.km1.send_request()
+        start_time = self.tl.now()
+        self.tl.run()
+        self.own_keys = np.append(self.own_keys,self.km1.keys)
+        self.another_keys = np.append(self.another_keys,self.km2.keys)
+
     ## Method to send messages
     def send_message(self, dst: str, messages: list[str]):
 
