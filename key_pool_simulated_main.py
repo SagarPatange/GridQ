@@ -1,4 +1,4 @@
-from message_app import MessageManager
+from key_pool_message_app import MessageManager
 from eavesdropper_implemented.node_GridQ import QKDNode_GridQ
 from message_application_components.qkd_generation import KeyManager, generate_10_keys
 from sequence.kernel.timeline import Timeline
@@ -10,7 +10,7 @@ from sequence.constants import MILLISECOND
 import threading, queue, json
 from message_application_components.csv_file_reader_thread import monitor_csv_file, user_input
 from message_application_components.power_grid_csv_generator import erase_powergrid_csv_data, read_csv_nth_row
-from key_pool_version.key_pool_thread import key_pool_generator
+from key_pool_thread import key_pool_generator
 
 def main():
     '''
@@ -113,7 +113,7 @@ def main():
 
     ##################################################### 
     # Continually check for user input in the shell
-    forever_loop_thread = threading.Thread(target=key_pool_generator, args=(, q2))
+    forever_loop_thread = threading.Thread(target=key_pool_generator, args=(message_manager_1, q2))
     forever_loop_thread.daemon = True  # Daemon thread exits when the main program exits
     forever_loop_thread.start()
 
@@ -124,7 +124,7 @@ def main():
 
     while True:
         # Check if there are new results in the queue
-
+        q2.put(True)
         try:
             while not q1.empty():
                 new_csv_row = q1.get_nowait()  # Non-blocking get
@@ -133,11 +133,13 @@ def main():
             pass
 
         if new_csv_row > current_csv_row:
+            q2.put(False)
             for i in range(current_csv_row , new_csv_row ):
                 row_data = read_csv_nth_row('./power_grid_datafiles/power_grid_input.csv', i)
                 parsed_data = list(json.loads(row_data).values())
                 message_manager_1.send_message(node2.name, parsed_data)
             current_csv_row = new_csv_row
+
 
         
 if __name__ == "__main__":

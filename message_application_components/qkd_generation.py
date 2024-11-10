@@ -31,8 +31,8 @@ class KeyManager:
         self.times.append(self.timeline.now() * 1e-9)
 
 def generate_10_keys(own, another, qkd_stack_size, km1, km2, tl):
-    own.set_protocol_layer(10, BB84_GridQ(own, own.name + ".BB84", own.name + ".lightsource", own.name + ".qsdetector"))
-    another.set_protocol_layer(10, BB84_GridQ(another, another.name + ".BB84", another.name + ".lightsource", another.name + ".qsdetector"))
+    own.set_protocol_layer(0, BB84_GridQ(own, own.name + ".BB84", own.name + ".lightsource", own.name + ".qsdetector"))
+    another.set_protocol_layer(00, BB84_GridQ(another, another.name + ".BB84", another.name + ".lightsource", another.name + ".qsdetector"))
 
     pair_bb84_protocols(own.protocol_stack[0], another.protocol_stack[0]) 
     if qkd_stack_size > 1:

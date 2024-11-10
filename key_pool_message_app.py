@@ -123,32 +123,6 @@ class MessageManager:
 
         machine_start_time = time.time()     
 
-        ## Generating right appropriate amount of keys
-        key_size = customize_keys(messages)
-        num_keys = len(messages)
-        self.km1.keysize = key_size
-        self.km2.keysize = key_size
-        self.km1.num_keys = num_keys
-        self.km2.num_keys = num_keys
-        
-        self.own.set_protocol_layer(0, BB84_GridQ(self.own, self.own.name + ".BB84", self.own.name + ".lightsource", self.own.name + ".qsdetector"))
-        self.another.set_protocol_layer(0, BB84_GridQ(self.another, self.another.name + ".BB84", self.another.name + ".lightsource", self.another.name + ".qsdetector"))
-
-        pair_bb84_protocols(self.own.protocol_stack[0], self.another.protocol_stack[0]) 
-        if self.qkd_stack_size > 1:
-            pair_cascade_protocols(self.own.protocol_stack[1], self.another.protocol_stack[1])
-        
-        self.km1.lower_protocols[0] = self.own.protocol_stack[self.qkd_stack_size - 1]
-        self.own.protocol_stack[self.qkd_stack_size - 1].upper_protocols = [self.km1]
-        self.km2.lower_protocols[0] = self.another.protocol_stack[self.qkd_stack_size - 1]
-        self.another.protocol_stack[self.qkd_stack_size - 1].upper_protocols = [self.km2]
-
-        self.km1.send_request()
-        start_time = self.tl.now()
-        self.tl.run()
-        self.own_keys = np.append(self.own_keys,self.km1.keys)
-        self.another_keys = np.append(self.another_keys,self.km2.keys)
-
         encoded_messages = []
         for i in range(len(messages)):
             # encoded_messages.append(otp_encrypt(messages[i], self.own_keys[i])) ## chat-gpt encrypt
@@ -186,22 +160,15 @@ class MessageManager:
         else:
             self.another_message_manager.messages_recieved = decrypted_messages_recieved
 
-        ## Metrics update
-        end_time = self.tl.now()
-        total_sim_time_ms = (end_time - start_time) / 1e9
-
-        ## Message Update
-        # for i in range(sum(1 for value in messages if value)):
-        #     compare_strings_with_color(messages[i], decrypted_messages_recieved[i])
         decrypted_messages_metastring = data_to_metastring(decrypted_messages_recieved)
         output_csv_path = './power_grid_datafiles/power_grid_output.csv'
-        append_json_to_csv(output_csv_path, decrypted_messages_metastring, total_sim_time_ms)
+        append_json_to_csv(output_csv_path, decrypted_messages_metastring, 0)
 
         ## delete used keys
-        self.own_keys = np.empty(0)
-        self.another_keys = np.empty(0)
-        self.km1.keys = []
-        self.km2.keys = []
+        self.own_keys = self.own_keys[len(messages):]
+        self.another_keys = self.another_keys[len(messages):]
+        self.km1.keys = self.km1.keys[len(messages):]
+        self.km2.keys = self.km2.keys[len(messages):]
 
         machine_end_time = time.time()
         print(f"Machine runtime: {round((machine_end_time - machine_start_time)*1e3, 3)} ms")
