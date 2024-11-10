@@ -52,7 +52,7 @@ def write_input_to_powergrid_csv_file(csv_file_path='./power_grid_datafiles/powe
         # Write the new data row
         writer.writerow(data)
 
-    print(f"Data has been written to '{csv_file_path}'")
+    # print(f"Data has been written to '{csv_file_path}'")
 
 
 def erase_powergrid_csv_data(csv_file_path = './power_grid_datafiles/power_grid_input.csv'):
@@ -94,7 +94,7 @@ def append_json_to_csv(csv_file_path, json_string, end_to_end_sim_time):
             csv_writer = csv.DictWriter(file, fieldnames=headers)
             # Write the data from the JSON string
             csv_writer.writerow(data_dict)
-        print("Data successfully added to the CSV file.")
+        # print("Data successfully added to the CSV file.")
 
     except FileNotFoundError:
         print(f"File not found: {csv_file_path}")

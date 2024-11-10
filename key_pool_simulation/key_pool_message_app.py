@@ -1,8 +1,6 @@
 ## imports from sequence package
 from sequence.kernel.timeline import Timeline
 from sequence.message import Message
-from sequence.qkd.BB84 import pair_bb84_protocols
-from sequence.qkd.cascade import pair_cascade_protocols
 from enum import Enum, auto
 from sequence.message import Message
 from sequence.qkd.cascade import Cascade
@@ -13,12 +11,9 @@ import time
 import numpy as np
 import onetimepad
 
+print()
 ## local repo imports 
-from eavesdropper_implemented.node_GridQ import QKDNode_GridQ
-from message_application_components.performance_metrics.message_accuracy import compare_strings_with_color
 from message_application_components.power_grid_csv_generator import append_json_to_csv, data_to_metastring
-from message_application_components.qkd_generation import KeyManager, customize_keys
-from eavesdropper_implemented.BB84_eve import BB84_GridQ
 
 ## Defines the message type
 class MessageType(Enum):
@@ -26,7 +21,7 @@ class MessageType(Enum):
 
 ## Defines the cryptic message exchange protocol
 class CrypticMessageExchange:
-    def __init__(self, own: "QKDNode_GridQ", another: "QKDNode_GridQ"):
+    def __init__(self, own, another):
         self.own = own
         self.another = another
         self.messages_sent = []
@@ -83,7 +78,7 @@ class MessageManager:
         period (float): period (ms) to check the input csv file. The node owner will check for input in csv file at every period of time. 
     '''
 
-    def __init__(self, owner: "QKDNode_GridQ", another: "QKDNode_GridQ", timeline: Timeline, key_manager1: "KeyManager", key_manager2: "KeyManager", qkd_stack_size: "int", internode_distance: "float", attenuation: "float", polarization_fidelity: 'float', eavesdropper_eff: 'float'):  # TODO: change own to owner
+    def __init__(self, owner, another, timeline, key_manager1, key_manager2, qkd_stack_size, internode_distance, attenuation, polarization_fidelity, eavesdropper_eff):  # TODO: change own to owner
 
         # Nodes
         self.own = owner
@@ -139,12 +134,14 @@ class MessageManager:
         self.own.set_protocol_layer(0, own_protocol)
         self.another.set_protocol_layer(0, another_protocol)
 
+        start_time = self.tl.now()
         ## send message
         for i in range(len(encoded_messages)):
             msg = EncryptedMessage(MessageType.REGULAR_MESSAGE, self.another.name, the_message = encoded_messages[i])
             if self.another.name == dst:
                 self.own.send_message(self.another.name, msg)
             self.tl.run()
+        end_time = self.tl.now()
 
         encrypted_messages_recieved = self.another.protocol_stack[0].messages_recieved
         decrypted_messages_recieved = []
@@ -162,7 +159,7 @@ class MessageManager:
 
         decrypted_messages_metastring = data_to_metastring(decrypted_messages_recieved)
         output_csv_path = './power_grid_datafiles/power_grid_output.csv'
-        append_json_to_csv(output_csv_path, decrypted_messages_metastring, 0)
+        append_json_to_csv(output_csv_path, decrypted_messages_metastring, (end_time - start_time)/1e9)
 
         ## delete used keys
         self.own_keys = self.own_keys[len(messages):]
@@ -171,4 +168,4 @@ class MessageManager:
         self.km2.keys = self.km2.keys[len(messages):]
 
         machine_end_time = time.time()
-        print(f"Machine runtime: {round((machine_end_time - machine_start_time)*1e3, 3)} ms")
+        print(f"Machine runtime: {round((machine_end_time - machine_start_time)*1e3, 3)} ms\n")
