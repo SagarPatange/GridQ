@@ -8,7 +8,7 @@ from sequence.qkd.BB84 import pair_bb84_protocols
 from sequence.qkd.cascade import pair_cascade_protocols
 from sequence.constants import MILLISECOND
 import threading, queue, json
-from message_application_components.csv_file_reader_thread import monitor_csv_file, user_input
+from message_application_components.csv_file_reader_thread import monitor_csv_file_row
 from message_application_components.power_grid_csv_generator import erase_powergrid_csv_data, read_csv_nth_row
 
 
@@ -100,7 +100,7 @@ def main():
     q = queue.Queue()
 
     # Create and start a thread for the forever loop
-    forever_loop_thread = threading.Thread(target=monitor_csv_file, args=('./power_grid_datafiles/power_grid_input.csv', 1, q))
+    forever_loop_thread = threading.Thread(target=monitor_csv_file_row, args=('./power_grid_datafiles/power_grid_input.csv', 1, q))
     forever_loop_thread.daemon = True  # Daemon thread exits when the main program exits
     forever_loop_thread.start()
 
