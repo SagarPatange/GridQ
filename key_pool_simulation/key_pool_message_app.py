@@ -1,19 +1,19 @@
 ## imports from sequence package
-from sequence.kernel.timeline import Timeline
 from sequence.message import Message
 from enum import Enum, auto
-from sequence.message import Message
 from sequence.qkd.cascade import Cascade
 import time
-
-
-## package imports
+from sequence.qkd.BB84 import pair_bb84_protocols
+from sequence.qkd.cascade import pair_cascade_protocols
 import numpy as np
 import onetimepad
+from message_application_components.qkd_generation import customize_keys
+from eavesdropper_implemented.BB84_eve import BB84_GridQ
+
 
 print()
 ## local repo imports 
-from message_application_components.power_grid_csv_generator import append_json_to_csv, data_to_metastring
+from message_application_components.power_grid_csv_generator import data_to_metastring, write_output_data
 
 ## Defines the message type
 class MessageType(Enum):
@@ -113,10 +113,39 @@ class MessageManager:
     def pair_message_manager(self, node):
         self.another_message_manager = node    
  
-    ## Method to send messages
+    def generate_keys(self, messages):
+        
+        ## Generating right appropriate amount of keys
+        key_size = customize_keys(messages)
+        num_keys = len(messages)
+        self.km1.keysize = key_size
+        self.km2.keysize = key_size
+        self.km1.num_keys = num_keys
+        self.km2.num_keys = num_keys
+        
+        self.own.set_protocol_layer(0, BB84_GridQ(self.own, self.own.name + ".BB84", self.own.name + ".lightsource", self.own.name + ".qsdetector"))
+        self.another.set_protocol_layer(0, BB84_GridQ(self.another, self.another.name + ".BB84", self.another.name + ".lightsource", self.another.name + ".qsdetector"))
+
+        pair_bb84_protocols(self.own.protocol_stack[0], self.another.protocol_stack[0]) 
+        if self.qkd_stack_size > 1:
+            pair_cascade_protocols(self.own.protocol_stack[1], self.another.protocol_stack[1])
+        
+        self.km1.lower_protocols[0] = self.own.protocol_stack[self.qkd_stack_size - 1]
+        self.own.protocol_stack[self.qkd_stack_size - 1].upper_protocols = [self.km1]
+        self.km2.lower_protocols[0] = self.another.protocol_stack[self.qkd_stack_size - 1]
+        self.another.protocol_stack[self.qkd_stack_size - 1].upper_protocols = [self.km2]
+
+        self.km1.send_request()
+        self.tl.run()
+        self.own_keys = np.append(self.own_keys,self.km1.keys)
+        self.another_keys = np.append(self.another_keys,self.km2.keys)
     def send_message(self, dst: str, messages: list[str]):
 
-        machine_start_time = time.time()     
+        machine_start_time = time.time()
+        start_time = self.tl.now()
+
+        if len(self.own_keys) < len(messages):
+            self.generate_keys(messages)     
 
         encoded_messages = []
         for i in range(len(messages)):
@@ -134,7 +163,6 @@ class MessageManager:
         self.own.set_protocol_layer(0, own_protocol)
         self.another.set_protocol_layer(0, another_protocol)
 
-        start_time = self.tl.now()
         ## send message
         for i in range(len(encoded_messages)):
             msg = EncryptedMessage(MessageType.REGULAR_MESSAGE, self.another.name, the_message = encoded_messages[i])
@@ -159,7 +187,7 @@ class MessageManager:
 
         decrypted_messages_metastring = data_to_metastring(decrypted_messages_recieved)
         output_csv_path = './power_grid_datafiles/power_grid_output.csv'
-        append_json_to_csv(output_csv_path, decrypted_messages_metastring, (end_time - start_time)/1e9)
+        write_output_data(decrypted_messages_metastring, (end_time - start_time)/1e9, output_csv_path)
 
         ## delete used keys
         self.own_keys = self.own_keys[len(messages):]

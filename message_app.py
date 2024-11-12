@@ -15,8 +15,7 @@ import onetimepad
 
 ## local repo imports 
 from eavesdropper_implemented.node_GridQ import QKDNode_GridQ
-from message_application_components.performance_metrics.message_accuracy import compare_strings_with_color
-from message_application_components.power_grid_csv_generator import append_json_to_csv, data_to_metastring
+from message_application_components.power_grid_csv_generator import data_to_metastring, write_output_data
 from message_application_components.qkd_generation import KeyManager, customize_keys
 from eavesdropper_implemented.BB84_eve import BB84_GridQ
 
@@ -118,36 +117,8 @@ class MessageManager:
     def pair_message_manager(self, node):
         self.another_message_manager = node    
  
-    def generate_keys(self):
-
-        self.km1.keysize = 20
-        self.km2.keysize = 20
-        self.km1.num_keys = 10
-        self.km2.num_keys = 10
+    def generate_keys(self, messages):
         
-        self.own.set_protocol_layer(0, BB84_GridQ(self.own, self.own.name + ".BB84", self.own.name + ".lightsource", self.own.name + ".qsdetector"))
-        self.another.set_protocol_layer(0, BB84_GridQ(self.another, self.another.name + ".BB84", self.another.name + ".lightsource", self.another.name + ".qsdetector"))
-
-        pair_bb84_protocols(self.own.protocol_stack[0], self.another.protocol_stack[0]) 
-        if self.qkd_stack_size > 1:
-            pair_cascade_protocols(self.own.protocol_stack[1], self.another.protocol_stack[1])
-        
-        self.km1.lower_protocols[0] = self.own.protocol_stack[self.qkd_stack_size - 1]
-        self.own.protocol_stack[self.qkd_stack_size - 1].upper_protocols = [self.km1]
-        self.km2.lower_protocols[0] = self.another.protocol_stack[self.qkd_stack_size - 1]
-        self.another.protocol_stack[self.qkd_stack_size - 1].upper_protocols = [self.km2]
-
-        self.km1.send_request()
-        start_time = self.tl.now()
-        self.tl.run()
-        self.own_keys = np.append(self.own_keys,self.km1.keys)
-        self.another_keys = np.append(self.another_keys,self.km2.keys)
-
-    ## Method to send messages
-    def send_message(self, dst: str, messages: list[str]):
-
-        machine_start_time = time.time()     
-
         ## Generating right appropriate amount of keys
         key_size = customize_keys(messages)
         num_keys = len(messages)
@@ -169,10 +140,17 @@ class MessageManager:
         self.another.protocol_stack[self.qkd_stack_size - 1].upper_protocols = [self.km2]
 
         self.km1.send_request()
-        start_time = self.tl.now()
         self.tl.run()
         self.own_keys = np.append(self.own_keys,self.km1.keys)
         self.another_keys = np.append(self.another_keys,self.km2.keys)
+
+    ## Method to send messages
+    def send_message(self, dst: str, messages: list[str]):
+
+        machine_start_time = time.time()     
+        start_time = self.tl.now()
+        
+        self.generate_keys(messages)
 
         encoded_messages = []
         for i in range(len(messages)):
@@ -215,12 +193,11 @@ class MessageManager:
         end_time = self.tl.now()
         total_sim_time_ms = (end_time - start_time) / 1e9
 
-        ## Message Update
-        # for i in range(sum(1 for value in messages if value)):
-        #     compare_strings_with_color(messages[i], decrypted_messages_recieved[i])
+
         decrypted_messages_metastring = data_to_metastring(decrypted_messages_recieved)
-        output_csv_path = './power_grid_datafiles/power_grid_output.csv'
-        append_json_to_csv(output_csv_path, decrypted_messages_metastring, total_sim_time_ms)
+        # output_csv_path = './power_grid_datafiles/power_grid_output.csv'
+        # append_json_to_csv(output_csv_path, decrypted_messages_metastring, total_sim_time_ms)
+        write_output_data(decrypted_messages_metastring, total_sim_time_ms)
 
         ## delete used keys
         self.own_keys = np.empty(0)

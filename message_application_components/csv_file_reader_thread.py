@@ -23,25 +23,16 @@ def monitor_csv_file(file_path, interval, q):
             print(f"File not found: {file_path}")
             continue
 
-# # Function to simulate running shell commands
-# def run_shell_command(command):
-#     print(f"Running command: {command}")
-
 def user_input():
     """
     Handles user input in a separate thread.
     """
     while True:
-        # Allow the user to input terminal commands
         user_command = input()
 
         if user_command.lower() == 'exit':
             print("Exiting the program.")
             os._exit(0)
         if user_command.lower() == 'generate data':
-            # current_time = datetime.now().strftime("%H:%M:%S")
             write_input_to_powergrid_csv_file()
 
-        # # Start a new thread to execute the user command without blocking the loop
-        # command_thread = threading.Thread(target=run_shell_command, args=(user_command,))
-        # command_thread.start()

@@ -4,44 +4,45 @@ import os
 import json
 from datetime import datetime
 
+def generate_input_data(filename = "./power_grid_datafiles/power_grid_input.csv"):
+    real_numbers = [round(random.random() * 100, 3) for _ in range(5)]
+    required_headers = ["P", "Q", "V", "f", "angle"]
+    data = {
+        "P": real_numbers[0],
+        "Q": real_numbers[1],
+        "V": real_numbers[2],
+        "f": real_numbers[3],
+        "angle": real_numbers[4]
+    }
+
+    with open(filename, mode="a", newline = filename) as file:
+        writer = csv.DictWriter(file, fieldnames=required_headers)
+        
+        # Check if the file is empty to write the header only once
+        if file.tell() == 0:
+            writer.writeheader()  # Write the header if the file is new or empty
+    
+        writer.writerow(data)  # Append the row of data
 
 def write_input_to_powergrid_csv_file(csv_file_path='./power_grid_datafiles/power_grid_input.csv'):
-    # Predefined headers
-    required_headers = ["P", "Q", "V", "f", "angle", "simulation_time"]
-
-    # Generate 5 real numbers rounded to 3 decimal places
+    required_headers = ["P", "Q", "V", "f", "angle"]
     real_numbers = [round(random.random() * 100, 3) for _ in range(5)]
-
-    # Generate 2 integers between 0 and 100
-    # integers = [random.randint(0, 100) for _ in range(2)]
-
-    # Create the dictionary with the specified structure
     data = {
         "P": real_numbers[0],
         "Q": real_numbers[1],
         "V": real_numbers[2],
         "f": real_numbers[3],
         "angle": real_numbers[4],
-        "simulation_time": None
-        # "status": integers[0],
-        # "mode": integers[1]
     }
 
-    # Check if the file exists
     file_exists = os.path.exists(csv_file_path)
-    
-    # Read existing content if the file exists
     existing_data = []
     if file_exists:
         with open(csv_file_path, mode='r', newline='') as file:
             csv_reader = csv.reader(file)
             existing_data = list(csv_reader)  # Read all existing data
-
-    # Open the file in write mode ('w') to overwrite it
     with open(csv_file_path, mode='w', newline='') as file:
         writer = csv.DictWriter(file, fieldnames=required_headers)
-
-        # Write the required headers at the top
         writer.writeheader()
 
         # Write existing data (if any), ignoring the previous headers
@@ -67,7 +68,38 @@ def erase_powergrid_csv_data(csv_file_path = './power_grid_datafiles/power_grid_
         writer.writerow(headers)  # Write the headers back to the file
 
     print(f"Data deleted in '{csv_file_path}'.")
-        
+
+def write_output_data(json_string, end_to_end_sim_time, csv_file_path = './power_grid_datafiles/power_grid_output.csv'):
+    data_dict = json.loads(json_string)
+    data_dict['simulation_time'] = end_to_end_sim_time
+
+    try:
+        with open(csv_file_path, mode='r+', newline='') as file:
+            reader = csv.reader(file)
+            existing_headers = next(reader, None)
+
+            # Check if headers need to be replaced
+            if existing_headers != list(data_dict.keys()):
+                # Move to the beginning and overwrite with new headers and existing data
+                file.seek(0)
+                writer = csv.DictWriter(file, fieldnames=data_dict.keys())
+                writer.writeheader()
+
+                # Re-write existing rows with new headers if they are present
+                for row in reader:
+                    writer.writerow(dict(zip(existing_headers, row)))
+                
+            # Move to the end of the file to append the new row
+            writer = csv.DictWriter(file, fieldnames=data_dict.keys())
+            writer.writerow(data_dict)
+
+    except FileNotFoundError:
+        # If file does not exist, create it and write the data
+        with open(csv_file_path, mode='w', newline='') as file:
+            writer = csv.DictWriter(file, fieldnames=data_dict.keys())
+            writer.writeheader()
+            writer.writerow(data_dict)
+            
 def append_json_to_csv(csv_file_path, json_string, end_to_end_sim_time):
     """
     Converts a JSON string to a row in an existing CSV file.
@@ -133,7 +165,7 @@ def data_to_metastring (values):
     return data_string
 
 if __name__ == "__main__":
-    erase_powergrid_csv_data('./power_grid_datafiles/power_grid_output.csv')
+    erase_powergrid_csv_data('./power_grid_datafiles/power_grid_input.csv')
     # current_time = datetime.now().strftime("%H:%M:%S")
-    write_input_to_powergrid_csv_file('./power_grid_datafiles/power_grid_output.csv')    
+    write_input_to_powergrid_csv_file('./power_grid_datafiles/power_grid_input.csv')    
     pass

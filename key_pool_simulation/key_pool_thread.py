@@ -34,5 +34,4 @@ def key_pool_generator(m1: "MessageManager", qkd_run):
 
         m1.own_keys = np.append(m1.own_keys,m1.km1.keys)
         m1.another_keys = np.append(m1.another_keys,m1.km2.keys)
-        time.sleep(10)
 

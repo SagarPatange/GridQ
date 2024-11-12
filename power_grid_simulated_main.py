@@ -99,6 +99,8 @@ def main():
 
     q = queue.Queue()
 
+    print("Enter a command (type 'exit' to quit and 'generate data' to add data to power_grid_input.csv): ")
+
     # Create and start a thread for the forever loop
     forever_loop_thread = threading.Thread(target=monitor_csv_file, args=('./power_grid_datafiles/power_grid_input.csv', 1, q))
     forever_loop_thread.daemon = True  # Daemon thread exits when the main program exits
