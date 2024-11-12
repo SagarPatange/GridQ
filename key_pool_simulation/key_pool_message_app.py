@@ -139,6 +139,7 @@ class MessageManager:
         self.tl.run()
         self.own_keys = np.append(self.own_keys,self.km1.keys)
         self.another_keys = np.append(self.another_keys,self.km2.keys)
+    
     def send_message(self, dst: str, messages: list[str]):
 
         machine_start_time = time.time()

@@ -1,9 +1,32 @@
-import threading, queue, time, csv, random, os
-from datetime import datetime
+import time, csv, os
 from message_application_components.power_grid_csv_generator import write_input_to_powergrid_csv_file
 
 
 # Function to monitor the CSV file for new data and add it to the queue
+
+def monitor_csv_file_row(file_path, interval, q):
+    last_line_count = 1
+
+    while True:
+        time.sleep(interval)  # Wait for the interval time
+        try:
+            with open(file_path, mode='r') as file:
+                csv_reader = list(csv.reader(file))
+                current_line_count = len(csv_reader)
+
+                # If new rows have been added, check each new row
+                if current_line_count > last_line_count:
+                    for i in range(last_line_count, current_line_count):
+                        # Check if all values in the row are filled (non-empty)
+                        if all(cell.strip() for cell in csv_reader[i]):
+                            q.put(csv_reader[i])  # Add the fully filled row to the queue
+
+                    last_line_count = current_line_count  # Update the last known line count
+
+        except FileNotFoundError:
+            print(f"File not found: {file_path}")
+            continue
+
 def monitor_csv_file(file_path, interval, q):
     last_line_count = 1
 

@@ -8,7 +8,7 @@ from sequence.qkd.BB84 import pair_bb84_protocols
 from sequence.qkd.cascade import pair_cascade_protocols
 from sequence.constants import MILLISECOND
 import threading, queue, json
-from message_application_components.csv_file_reader_thread import monitor_csv_file, user_input
+from message_application_components.csv_file_reader_thread import monitor_csv_file, user_input, monitor_csv_file_row
 from message_application_components.power_grid_csv_generator import erase_powergrid_csv_data, read_csv_nth_row
 from key_pool_simulation.key_pool_thread import key_pool_generator
 
@@ -27,6 +27,7 @@ def main():
     eavesdropper_eff = 0.0        # eavesdropper_eff (float): added noise which is the probability of qubit being affected by noise of an eavesdropper. 
     qkd_stack_size = 1            # stack_size (int: 1, 2, 3, 4, or 5): 1) only BB84 implemented in QKD, 2) BB84 and Cascade implemented in QKD
     backup_qc = False
+    max_key_pool_size = 500
 
     # Lightsource Variables 
     frequency=1e6                 # frequency (float): frequency (in Hz) of photon creation (default 8e7).
@@ -101,7 +102,7 @@ def main():
     qkd_run = threading.Event()
 
     # Create and start a thread for the forever loop
-    forever_loop_thread = threading.Thread(target=monitor_csv_file, args=('./power_grid_datafiles/power_grid_input.csv', 1, q1))
+    forever_loop_thread = threading.Thread(target=monitor_csv_file_row, args=('./power_grid_datafiles/power_grid_input.csv', 1, q1))
     forever_loop_thread.daemon = True  # Daemon thread exits when the main program exits
     forever_loop_thread.start()
 
@@ -113,7 +114,7 @@ def main():
 
     ##################################################### 
     # Continually check for user input in the shell
-    qkd_thread = threading.Thread(target=key_pool_generator, args=(message_manager_1, qkd_run))
+    qkd_thread = threading.Thread(target=key_pool_generator, args=(max_key_pool_size, message_manager_1, qkd_run))
     qkd_thread.daemon = True  # Daemon thread exits when the main program exits
     qkd_thread.start()
 
@@ -143,7 +144,7 @@ def main():
                 message_manager_1.send_message(node2.name, parsed_data)
             current_csv_row = new_csv_row
 
-            qkd_thread = threading.Thread(target=key_pool_generator, args=(message_manager_1, qkd_run))
+            qkd_thread = threading.Thread(target=key_pool_generator, args=(max_key_pool_size,message_manager_1, qkd_run))
             qkd_thread.daemon = True  # Daemon thread exits when the main program exits
             qkd_thread.start()
             

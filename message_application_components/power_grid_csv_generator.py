@@ -120,7 +120,7 @@ def append_json_to_csv(csv_file_path, json_string, end_to_end_sim_time):
             return
         
         # Add the current time and time difference to the dictionary
-        data_dict['simulation_time'] = end_to_end_sim_time
+        data_dict['estimated_end_to_end_time'] = end_to_end_sim_time
         # Append the data to the CSV file
         with open(csv_file_path, mode='a', newline='') as file:
             csv_writer = csv.DictWriter(file, fieldnames=headers)
@@ -159,7 +159,7 @@ def read_csv_nth_row(csv_file_path, n):
 
 def data_to_metastring (values):
 
-    keys = ["P", "Q", "V", "f", "angle", "simulation_time"]
+    keys = ["P", "Q", "V", "f", "angle", "estimated_end_to_end_time"]
     data_dict = dict(zip(keys, values))
     data_string = json.dumps(data_dict)
     return data_string
