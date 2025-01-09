@@ -1,10 +1,11 @@
+from queue import Queue
 import time, csv, os
 from message_application_components.power_grid_csv_generator import write_input_to_powergrid_csv_file
 
 
 # Function to monitor the CSV file for new data and add it to the queue
 
-def monitor_csv_file_row(file_path, interval, q):
+def monitor_csv_file_row(file_path: str, interval: float, q: Queue):
     last_line_count = 1
 
     while True:
@@ -27,7 +28,7 @@ def monitor_csv_file_row(file_path, interval, q):
             print(f"File not found: {file_path}")
             continue
 
-def monitor_csv_file(file_path, interval, q):
+def monitor_csv_file(file_path: str, interval: float, q: Queue):
     last_line_count = 1
 
     while True:

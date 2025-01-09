@@ -1,3 +1,4 @@
+import time
 from message_app import MessageManager
 from eavesdropper_implemented.node_GridQ import QKDNode_GridQ
 from message_application_components.qkd_generation import KeyManager
@@ -100,7 +101,7 @@ def main():
     q = queue.Queue()
 
     # Create and start a thread for the forever loop
-    forever_loop_thread = threading.Thread(target=monitor_csv_file_row, args=('./power_grid_datafiles/power_grid_input.csv', 1, q))
+    forever_loop_thread = threading.Thread(target=monitor_csv_file_row, args=('./power_grid_datafiles/power_grid_input.csv', 0.1, q))
     forever_loop_thread.daemon = True  # Daemon thread exits when the main program exits
     forever_loop_thread.start()
 
@@ -126,7 +127,9 @@ def main():
                 message_manager_1.send_message(node2.name, parsed_data)
             current_csv_row = new_csv_row
 
-        
+        time.sleep(0.01) # prevent a core reaching 100% CPU
+
+
 if __name__ == "__main__":
     main()
 

@@ -3,3 +3,4 @@ __pycache__
 *log*
 *.txt
 test.py
+power_grid_datafiles/
