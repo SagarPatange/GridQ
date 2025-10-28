@@ -51,6 +51,10 @@ def user_input():
     """
     Handles user input in a separate thread.
     """
+    # Calculate path to power_grid_datafiles relative to this script
+    script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    csv_path = os.path.join(script_dir, 'power_grid_datafiles', 'power_grid_input.csv')
+
     while True:
         user_command = input()
 
@@ -58,5 +62,5 @@ def user_input():
             print("Exiting the program.")
             os._exit(0)
         if user_command.lower() == 'generate data':
-            write_input_to_powergrid_csv_file()
+            write_input_to_powergrid_csv_file(csv_path)
 
