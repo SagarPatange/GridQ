@@ -1,4 +1,10 @@
 *.pyc
 __pycache__
 *log*
+<<<<<<< HEAD
 test.py
+=======
+*.txt
+test.py
+power_grid_datafiles/
+>>>>>>> 516f1698f4a86bc2cd86b9dd1ef4f1a22fbe9a00

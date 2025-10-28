@@ -1,4 +1,9 @@
+<<<<<<< HEAD
 from key_pool_simulation.key_pool_message_app import MessageManager
+=======
+import time
+from message_app import MessageManager
+>>>>>>> 516f1698f4a86bc2cd86b9dd1ef4f1a22fbe9a00
 from eavesdropper_implemented.node_GridQ import QKDNode_GridQ
 from message_application_components.qkd_generation import KeyManager
 from sequence.kernel.timeline import Timeline
@@ -105,7 +110,11 @@ def main():
     qkd_run = threading.Event()
 
     # Create and start a thread for the forever loop
+<<<<<<< HEAD
     forever_loop_thread = threading.Thread(target=monitor_csv_file_row, args=(os.path.join(SCRIPT_DIR, 'power_grid_datafiles/power_grid_input.csv'), 1, q1))
+=======
+    forever_loop_thread = threading.Thread(target=monitor_csv_file_row, args=('./power_grid_datafiles/power_grid_input.csv', 0.1, q))
+>>>>>>> 516f1698f4a86bc2cd86b9dd1ef4f1a22fbe9a00
     forever_loop_thread.daemon = True  # Daemon thread exits when the main program exits
     forever_loop_thread.start()
 
@@ -141,10 +150,15 @@ def main():
                 message_manager_1.send_message(node2.name, parsed_data)
             current_csv_row = new_csv_row
 
+<<<<<<< HEAD
             qkd_thread = threading.Thread(target=key_pool_generator, args=(max_key_pool_size,message_manager_1, qkd_run))
             qkd_thread.daemon = True  # Daemon thread exits when the main program exits
             qkd_thread.start()
             
+=======
+        time.sleep(0.01) # prevent a core reaching 100% CPU
+
+>>>>>>> 516f1698f4a86bc2cd86b9dd1ef4f1a22fbe9a00
 
 if __name__ == "__main__":
     main()
