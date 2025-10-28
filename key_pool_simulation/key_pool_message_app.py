@@ -3,6 +3,7 @@ from sequence.message import Message
 from enum import Enum, auto
 from sequence.qkd.cascade import Cascade
 import time
+import os
 from sequence.qkd.BB84 import pair_bb84_protocols
 from sequence.qkd.cascade import pair_cascade_protocols
 import numpy as np
@@ -187,7 +188,9 @@ class MessageManager:
             self.another_message_manager.messages_recieved = decrypted_messages_recieved
 
         decrypted_messages_metastring = data_to_metastring(decrypted_messages_recieved)
-        output_csv_path = './power_grid_datafiles/power_grid_output.csv'
+        # Calculate path relative to project root for Docker compatibility
+        script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        output_csv_path = os.path.join(script_dir, 'power_grid_datafiles', 'power_grid_output.csv')
         write_output_data(decrypted_messages_metastring, (end_time - start_time)/1e9, output_csv_path)
 
         ## delete used keys

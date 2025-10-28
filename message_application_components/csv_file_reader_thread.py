@@ -50,17 +50,23 @@ def monitor_csv_file(file_path: str, interval: float, q: Queue):
 def user_input():
     """
     Handles user input in a separate thread.
+    Gracefully handles non-interactive environments (e.g., Docker without -it).
     """
     # Calculate path to power_grid_datafiles relative to this script
     script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     csv_path = os.path.join(script_dir, 'power_grid_datafiles', 'power_grid_input.csv')
 
-    while True:
-        user_command = input()
+    try:
+        while True:
+            user_command = input()
 
-        if user_command.lower() == 'exit':
-            print("Exiting the program.")
-            os._exit(0)
-        if user_command.lower() == 'generate data':
-            write_input_to_powergrid_csv_file(csv_path)
+            if user_command.lower() == 'exit':
+                print("Exiting the program.")
+                os._exit(0)
+            if user_command.lower() == 'generate data':
+                write_input_to_powergrid_csv_file(csv_path)
+    except EOFError:
+        # No stdin available (e.g., Docker without -it flag)
+        # Silently exit the user input thread
+        pass
 

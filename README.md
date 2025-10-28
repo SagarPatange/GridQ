@@ -36,11 +36,43 @@ There are three main programs in this project.
 2) `main.py`
 3) `power_grid_simulated_main.py`
 
-The Dockerfile is used to run `main.py`. When it is run, the `main.py` file will constantly read the target csv data file `power_grid_input.csv` which is in the `power_grid_datafiles`. Oak Ridge National Lab's program in its own docker container is supposed to interact with the `power_grid_input.csv` data file to add new power grid data but this implementation is still in progress. 
+The Dockerfile is used to run `main.py`. When it is run, the `main.py` file will constantly read the target csv data file `power_grid_input.csv` which is in the `power_grid_datafiles`. Oak Ridge National Lab's program in its own docker container is supposed to interact with the `power_grid_input.csv` data file to add new power grid data but this implementation is still in progress.
 
-To run the Dockerfile, please use the commands `docker build -t power_grid .` and `docker run power_grid` to build the image and run the image respectively. 
+### Running with Docker
 
-Hence, the `power_grid_simulated_main.py` file was created to simulate the data coming into the `power_grid_input.csv`. Once the program is run, the `power_grid_simulated_main.py` file will allow the user to type in `generate data` into the command prompt to generate data into the `power_grid_input.csv` data file. Once this newly generated data is detected by `power_grid_simulated_main.py`, a messaging application will generate keys using quantum key distribution between two nodes (sender and reciever node). After the sender sends the encrypted message to the reciever, the messages will then be decrypted using the shared symetric quantum key. The message relayed onto the sender node will show up on the `power_grid_output.csv` include extra metrics of data regarding the simulation time  
+**Step 1: Build the Docker image (one time only, or when code changes):**
+```bash
+docker build -t power_grid .
+```
+**Note:** The build command only uses `-t` to name the image. Do NOT use `-it` or `-d` with `docker build`.
+
+**Step 2: Run the container**
+
+**Option A - Interactive mode (to manually type commands):**
+```bash
+docker run -it power_grid
+```
+The `-it` flags enable interactive mode, allowing you to type commands like `generate data` and `exit` directly into the container. Use this for manual testing and operation.
+
+**Option B - Background mode (for automated operation):**
+```bash
+docker run -d power_grid
+```
+The `-d` flag runs the container in detached/background mode. Use this when data will be added to the CSV files automatically by external systems (e.g., Oak Ridge National Lab's program) without manual input.
+
+**Important:** The `-it` and `-d` flags are ONLY for `docker run`, not for `docker build`. 
+
+Hence, the `power_grid_simulated_main.py` file was created to simulate the data coming into the `power_grid_input.csv`. Once the program is run, the `power_grid_simulated_main.py` file will allow the user to type in `generate data` into the command prompt to generate data into the `power_grid_input.csv` data file.
+
+## Key Pool Architecture for Performance
+
+For efficiency, the system uses a **key pool approach** where quantum keys are continuously pre-generated in the background. The system maintains a pool of up to **500 quantum keys** at all times, which are generated using the BB84 quantum key distribution protocol. This design choice significantly improves performance by:
+
+- **Eliminating delays**: Messages can be encrypted immediately using keys from the pool, without waiting for QKD key generation
+- **Continuous key availability**: A background thread (`key_pool_generator`) constantly replenishes the key pool
+- **Resource optimization**: Key generation runs during idle time rather than blocking message transmission
+
+When new data is detected in `power_grid_input.csv`, the messaging application retrieves pre-generated keys from the pool and uses them to encrypt messages sent between two nodes (sender and receiver node). After the sender sends the encrypted message to the receiver, the messages are then decrypted using the shared symmetric quantum key. Used keys are removed from the pool after message transmission. The message relayed to the receiver node shows up in `power_grid_output.csv` along with extra metrics of data regarding the simulation time  
 
 Both of the main files contain changeable parameters at the beginning of the script allowing for easy testing of different quantum systems. Parameters include:
 
