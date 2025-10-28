@@ -2,7 +2,7 @@
 
 FROM python:3.11.9
 
-ADD message_app.py .
+ADD main.py .
 
 WORKDIR /GRIDQ
 
@@ -10,4 +10,4 @@ COPY . /GRIDQ
 
 RUN pip install --no-cache-dir -r docker_requirements.txt
 
-CMD ["python", "./main.py"]
+CMD ["python", "main.py"]
